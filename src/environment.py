@@ -41,7 +41,7 @@ class Environment:
         """
         self.DIMENSIONS = dimensions
         self.DT = dt
-        self.time = 0
+        self.time = 0.0
         self.OBSTACLES = obstacles
         self.LANDMARKS = landmarks
         self.robot_pose = robot_starting_pose
