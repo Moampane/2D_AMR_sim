@@ -86,8 +86,11 @@ class Environment:
         Returns:
             true if the position is valid and false otherwise
         """
-        # TODO: fill in the function
-        pass
+        for ob in self.OBSTACLES:
+            if ob.within_bounds(position):
+                return False
+
+        return self.DIMENSIONS.within_bounds(position)
 
     def get_robot_pose(self):
         """
