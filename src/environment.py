@@ -61,7 +61,7 @@ class Environment:
             assert dimensions.within_bounds(mark.pos)
         assert len(set(l.id for l in init_landmarks)) == len(init_landmarks)
 
-        self.robot_pose = robot_starting_pose   # Theta is [0, 2pi]
+        self.robot_pose = robot_starting_pose   # Theta is [-pi, pi]
         self.obstacles = init_obstacles
         self.landmarks = init_landmarks
 
@@ -82,7 +82,7 @@ class Environment:
 
         # Set new robot pose
         curr_x, curr_y, curr_theta = self.robot_pose.pos.x, self.robot_pose.pos.y, self.robot_pose.theta
-        self.robot_pose = Pose(Position(curr_x + dx, curr_y + dy), (curr_theta + dtheta) % 2 * math.pi)
+        self.robot_pose = Pose(Position(curr_x + dx, curr_y + dy), (curr_theta + dtheta + math.pi) % (2 * math.pi) - math.pi)
 
         # Take timestep
         self.time += self.timestep
@@ -139,8 +139,18 @@ class Environment:
         """
         Return a list of the robot's true range and bearing to all landmarks.
         """
-        # TODO: fill in the function
-        pass
+        proximity = []  # List of BearingRanges, contains landmark_id, bearing, and range
+
+        for mark in self.landmarks:
+            dx = mark.pos.x - self.robot_pose.pos.x
+            dy = mark.pos.y - self.robot_pose.pos.y
+            dist = math.sqrt(dx * dx + dy * dy)
+
+            bearing = math.atan2(dy, dx) - self.robot_pose.theta
+            bearing = (bearing + math.pi) % (2 * math.pi) - math.pi
+            proximity.append(BearingRange(mark.id, bearing, dist))
+
+        return proximity
 
     def take_state_snapshot(self):
         """
