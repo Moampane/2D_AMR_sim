@@ -91,8 +91,19 @@ class Environment:
             dx: change in x position that should be executed
             dy: change in y position that should be executed
         """
-        # TODO: fill in the function
-        pass
+        # TODO: could make it so robot goes to the bound (world or obstacle wall), but would require knowing what is invalidating the position
+        new_x = self.robot_pose.pos.x
+        new_y = self.robot_pose.pos.y
+
+        # Check new x
+        if self.is_valid_position(Position(new_x + dx, new_y)):
+            new_x += dx
+
+        # Check new y
+        if self.is_valid_position(Position(new_x, new_y + dy)):
+            new_y += dy
+
+        return new_x, new_y
 
     def is_valid_position(self, position: Position):
         """
