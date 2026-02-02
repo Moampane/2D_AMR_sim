@@ -4,6 +4,7 @@ A simulated robotic agent with teleoperation and sensing capabilities.
 The Robot class models the robotic agent that explores the world. The robot is remote-controlled by angular and linear velocity commands read from an external file. The robot can execute motor commands to move, and can sense both externally (GPS, landmarks, obstacles) and internally (odometry, IMU).
 """
 
+import random
 from environment import Environment
 from sensors import SensorInterface
 
@@ -17,7 +18,7 @@ class Robot:
         sensors: list of all robot sensors
     """
 
-    def __init__(self, env: Environment):
+    def __init__(self, env: Environment, robot_info: dict, sensor_info: dict):
         """
         Initialize an instance of the Robot class.
 
@@ -26,6 +27,21 @@ class Robot:
         """
         self.env = env
         self.sensors = []
+
+        # Desired commands
+        self.cmd_x_vel = 0.0    # m/s
+        self.cmd_y_vel = 0.0    # m/s
+        self.cmd_ang_vel = 0.0    # rad/s
+
+        # Noisy / actual commands
+        self.act_x_vel = 0.0    # m/s
+        self.act_y_vel = 0.0    # m/s
+        self.act_ang_vel = 0.0    # rad/s
+
+        # Physical properties
+        mtr_info = robot_info["Motor"]
+        self.lin_noise = mtr_info["linear_noise"]
+        self.ang_noise = mtr_info["angular_noise"]
 
     def robot_step_differential(self, lin_vel: float, ang_vel: float):
         """
@@ -57,6 +73,21 @@ class Robot:
             dy: change in y position
             dtheta: change in heading
         """
+        # Track commanded velocities
+        self.cmd_x_vel = x_vel   # m/s
+        self.cmd_y_vel = y_vel   # m/s
+        self.cmd_ang_vel = ang_vel   # rad/s
+
+        # Make noisy commands
+        x_vel = x_vel * (1 + random.gauss(0, self.lin_noise))
+        y_vel = y_vel * (1 + random.gauss(0, self.lin_noise))
+        ang_vel = ang_vel * (1 + random.gauss(0, self.ang_noise))
+
+        # Track actual velocities
+        self.act_x_vel = x_vel   # m/s
+        self.act_y_vel = y_vel   # m/s
+        self.act_ang_vel = ang_vel   # rad/s
+
         # Calculate change in robot state variables
         timestep = self.env.timestep
         dx = x_vel * timestep

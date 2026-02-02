@@ -92,8 +92,9 @@ class WheelEncoder(SensorInterface):
         robot,
         name="wheel_encoder",
         interval=0.1,
-        lin_noise=0.05,
-        ang_noise=0.03,
+        init_x_noise=0.05,
+        init_y_noise=0.05,
+        init_ang_noise=0.03,
     ):
         """
         Initialize an instance of the WheelEncoder class.
@@ -106,9 +107,9 @@ class WheelEncoder(SensorInterface):
             angular_noise_ratio: proportional noise for angular
         """
         super().__init__(name, robot, interval)
-        # TODO: save all noise constants as properties
-        self.LIN_NOISE = None  # m/s
-        self.ANG_NOISE = None  # rad/s
+        self.x_noise = init_x_noise  # m/s
+        self.y_noise = init_y_noise  # m/s
+        self.ang_noise = init_ang_noise  # rad/s
 
     def sample(self):
         """
