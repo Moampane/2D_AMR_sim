@@ -142,9 +142,9 @@ class WheelEncoder(SensorInterface):
 
         odom_df = pd.DataFrame(
             {
-                f"{self.name}_x_vel": [measured_x_vel],
-                f"{self.name}_y_vel": [measured_y_vel],
-                f"{self.name}_ang_vel": [measured_ang_vel],
+                f"{self.name}_x_vel": [round(measured_x_vel, 3)],
+                f"{self.name}_y_vel": [round(measured_y_vel, 3)],
+                f"{self.name}_ang_vel": [round(measured_ang_vel, 3)],
             }
         )
 
@@ -211,7 +211,7 @@ class LandmarkPinger(SensorInterface):
                 noisy_bearing = float("inf")
                 noisy_range = float("inf")
 
-            noisy_bearing_ranges[f"lmp_bearing_{lm.landmark_id}"] = noisy_bearing
-            noisy_bearing_ranges[f"lmp_range_{lm.landmark_id}"] = noisy_range
+            noisy_bearing_ranges[f"lmp_bearing_{lm.landmark_id}"] = round(noisy_bearing, 3)
+            noisy_bearing_ranges[f"lmp_range_{lm.landmark_id}"] = round(noisy_range, 3)
 
         return pd.DataFrame([noisy_bearing_ranges])

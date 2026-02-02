@@ -1,7 +1,7 @@
 # Probabilistic Robotics Playground: 2D Mobile Robot Simulation Environment
-> **Developed by [your name here!]**
+> **Developed by [Mo]**
 > 
-> **Contributors:** [anyone you worked with!]
+> **Contributors:** [Ivy Mahncke, Dominic Salmieri, Victoria Preston]
 
 ## Repository Overview and Vision
 This repository is meant to be a starting point for creativity and self-guided learning for the _Probabilistic Robotics_ course at Olin College of Engineering, providing an initial skeleton for a mobile robot simulation environment. Assignments throughout the course will revisit this simulator: building out more of its capabilities, utilizing it to investigate particular algorithms and methods, and providing a start for deep dive projects that push the class materials even further.
@@ -33,3 +33,6 @@ At minimum, your simulator should include the following features:
 - Classes to model at least one proprioceptive sensor (wheel encoders, IMU) and at least one exteroceptive sensor (GPS, beacon-range to landmarks, LIDAR); each sensor must take noisy samples of the ground truth at specific intervals
 - Functionality to write an output file listing ground truth data and sensor data by timestep
 - An easy-to-read README with details on how to run the simulator, and a requirements.txt file listing all dependencies
+
+### Running the simulator
+In src/main.py you can adjust the environment, robot, and sensor parameters. Create a virtual environment and download the dependencies from requirements.txt. Finally run python3 src/main.py from the root.
