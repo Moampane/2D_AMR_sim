@@ -8,12 +8,11 @@ from utils import Position, Pose, Landmark, Bounds
 
 if __name__ == "__main__":
     # set up the environment
-    # TODO: choose values for each input parameter, using the expected datatype
-    dimensions = None
-    dt = None
-    obstacles = []
-    landmarks = []
-    initial_robot_pose = None
+    dimensions = Bounds(0, 10, 0, 10)
+    dt = 0.1
+    obstacles = [Bounds(6, 8, 2, 7), Bounds(1, 2, 8, 9)]
+    landmarks = [Landmark(Position(1, 1), 0), Landmark(Position(3, 3), 0), Landmark(Position(5, 5), 0)]
+    initial_robot_pose = Pose(Position(1, 1), 0.0)
 
     env = Environment(
         dimensions,
