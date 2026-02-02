@@ -11,6 +11,7 @@ Proprioceptive sensors measure the robot's relationship to its past states. This
 import random
 from abc import ABC, abstractmethod
 from math import pi
+from utils import BearingRange
 
 
 class SensorInterface(ABC):
@@ -149,10 +150,10 @@ class LandmarkPinger(SensorInterface):
         name: reference identifier
         robot (Robot): reference robot
         interval (float): period between measurements
-        MAX_RANGE (int): maximum distance from a beacon for it to be visible
-        RANGE_NOISE (float): absolute noise for range stdev
-        RANGE_NOISE_RATIO (float): porportional noise for range stdev
-        BEARING_NOISE (float): absolute noise for bearing stdev
+        max_range (int): maximum distance from a beacon for it to be visible
+        range_noise (float): absolute noise for range stdev
+        range_noise_ratio (float): porportional noise for range stdev
+        bearing_noise (float): absolute noise for bearing stdev
     """
 
     def __init__(
@@ -160,10 +161,10 @@ class LandmarkPinger(SensorInterface):
         robot,
         name="landmark_pinger",
         interval=1.0,
-        range_noise=0.5,
-        range_prop_noise=0.05,
-        bearing_noise=pi / 6,
-        max_range=10.0,
+        init_range_noise=0.5,
+        init_range_prop_noise=0.05,
+        init_bearing_noise=pi / 6,
+        init_max_range=10.0,
     ):
         """
         Initialize an instance of the LandmarkPinger class.
@@ -172,17 +173,33 @@ class LandmarkPinger(SensorInterface):
             name (str): reference identifier
             robot (Robot): reference robot
             interval (float): period between measurements
+            init_max_range (int): maximum distance from a beacon for it to be visible
+            init_range_noise (float): absolute noise for range stdev
+            init_range_prop_noise (float): porportional noise for range stdev
+            init_bearing_noise (float): absolute noise for bearing stdev
         """
         super().__init__(name, robot, interval)
-        # TODO: save max range and all noise constants as properties
-        self.MAX_RANGE = None  # meters
-        self.RANGE_NOISE = None  # meters
-        self.RANGE_PROP_NOISE = None
-        self.BEARING_NOISE = None  # radians
+        self.max_range = init_max_range  # meters
+        self.range_noise = init_range_noise  # meters
+        self.range_noise_ratio = init_range_prop_noise
+        self.bearing_noise = init_bearing_noise  # radians
 
     def sample(self):
         """
         Reports noisy measurements of the bearing and range between the robot and all nearby landmarks.
         """
-        # TODO: fill in the function
-        pass
+        gt_bearing_ranges = self.robot.env.get_proximity_to_landmarks()
+        noisy_bearing_ranges = []
+
+        for lm in gt_bearing_ranges:
+            if lm.range <= self.max_range:
+                noisy_bearing = random.gauss(lm.bearing, self.bearing_noise)
+                noisy_range = random.gauss(lm.range, self.range_noise + lm.range * self.range_noise_ratio)
+            else:
+                noisy_bearing = float("inf")
+                noisy_range = float("inf")
+
+            noisy_br = BearingRange(lm.landmark_id, noisy_bearing, noisy_range)
+            noisy_bearing_ranges.append(noisy_br)
+
+        return noisy_bearing_ranges
