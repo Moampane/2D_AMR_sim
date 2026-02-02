@@ -6,9 +6,9 @@ The Environment class models the world that the robots navigate in. The world is
 Critically, the environment tracks the robot's state. In this case, the robot's state is a vector that includes three state variables: x position, y position, and heading.
 """
 
-from utils import Position, Pose, Bounds, Landmark, BearingRange
 import math
-
+import pandas as pd
+from utils import Position, Pose, Bounds, Landmark, BearingRange
 
 class Environment:
     """
@@ -129,7 +129,7 @@ class Environment:
 
         return self.world_bounds.within_bounds(position)
 
-    def get_robot_pose(self):
+    def get_robot_pose(self) -> Pose:
         """
         Return the true robot pose.
         """
@@ -156,8 +156,17 @@ class Environment:
         """
         Return true state information about this timestep, including time, robot position, and the robot's bearing/range to landmarks, in a table format.
         """
-        # TODO: fill in the function
-        pass
+        proximities = self.get_proximity_to_landmarks()
+        curr_pose = self.get_robot_pose()
+
+        data = {"Time": self.time, "x": curr_pose.pos.x, "y": curr_pose.pos.y, "Theta": curr_pose.theta}
+
+        for mark in proximities:
+            lm_id = mark.landmark_id
+            data[f"Bearing_{lm_id}"] = mark.bearing
+            data[f"Range_{lm_id}"] = mark.range
+
+        return pd.DataFrame([data])
 
     def get_environment_info(self):
         """
