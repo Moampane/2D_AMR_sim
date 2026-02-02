@@ -111,7 +111,7 @@ class Environment:
         if self.is_valid_position(Position(new_x, new_y + dy)):
             new_y += dy
 
-        return new_x, new_y
+        return dx, dy
 
     def is_valid_position(self, position: Position):
         """
@@ -159,12 +159,12 @@ class Environment:
         proximities = self.get_proximity_to_landmarks()
         curr_pose = self.get_robot_pose()
 
-        data = {"Time": self.time, "x": curr_pose.pos.x, "y": curr_pose.pos.y, "Theta": curr_pose.theta}
+        data = {"Time": self.time, "x": round(curr_pose.pos.x, 3), "y": round(curr_pose.pos.y, 3), "Theta": round(curr_pose.theta, 3)}
 
         for mark in proximities:
             lm_id = mark.landmark_id
-            data[f"Bearing_{lm_id}"] = mark.bearing
-            data[f"Range_{lm_id}"] = mark.range
+            data[f"Bearing_{lm_id}"] = round(mark.bearing, 3)
+            data[f"Range_{lm_id}"] = round(mark.range, 3)
 
         return pd.DataFrame([data])
 

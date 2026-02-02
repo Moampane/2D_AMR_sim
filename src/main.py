@@ -76,13 +76,13 @@ if __name__ == "__main__":
         current_ang_vel = float(next_cmd[3])
         # iterate through each timestep
         for step in range(int(total_timesteps) + 1):
-            # TODO: take a ground truth snapshot and add it to the history
+            # Take a ground truth snapshot and add it to the history
             ground_truth_history.append(env.take_state_snapshot())
 
-            # TODO: take sensor measurements and add it to the history
+            # Take sensor measurements and add it to the history
             sensor_data_history.append(robot.take_sensor_measurements())
 
-            # TODO: retrieve the next motor command from the input file
+            # Retrieve the next motor command from the input file
             if round(float(next_cmd[0]), 3) <= env.timestep * step:
                 current_x_vel = float(next_cmd[1])
                 current_y_vel = float(next_cmd[2])
@@ -92,14 +92,14 @@ if __name__ == "__main__":
                 except StopIteration:
                     pass
 
-            # TODO: execute the motor command
+            # Execute the motor command
             robot.robot_step_translational(current_x_vel, current_y_vel, current_ang_vel)
 
     # at the end, write the histories into output files
-    # TODO: write ground_truth_history to a file
+    # Write ground_truth_history to a file
     ground_truth_df = pd.concat(ground_truth_history, ignore_index=True)
     ground_truth_df.to_csv(output_ground_truth_filepath, index=False)
 
-    # TODO: write sensor_data_history to a file
+    # Write sensor_data_history to a file
     sensor_data_df = pd.concat(sensor_data_history, ignore_index=True)
     sensor_data_df.to_csv(output_sensor_data_filepath, index=False)
