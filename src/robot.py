@@ -5,6 +5,7 @@ The Robot class models the robotic agent that explores the world. The robot is r
 """
 
 import random
+import pandas as pd
 from environment import Environment
 from sensors import SensorInterface, WheelEncoder, LandmarkPinger
 
@@ -129,5 +130,21 @@ class Robot:
         """
         Return noisy sensor readings of the environment at this timestep, including data from all sensors, in a table format.
         """
-        # TODO: fill in the function
-        pass
+        measurements = pd.DataFrame({"Time": [self.env.time]})
+
+        for sensor in self.sensors.values():
+            if self.env.time - sensor.last_meas_t >= sensor.interval:
+                sensor.last_meas_t = self.env.time
+                measurements = pd.merge(
+                    measurements,
+                    sensor.sample(),
+                    left_index=True,
+                    right_index=True,
+                )
+
+        # Get the command velocities
+        measurements["cmd_x_vel"] = [self.cmd_x_vel]
+        measurements["cmd_y_vel"] = [self.cmd_y_vel]
+        measurements["cmd_ang_vel"] = [self.cmd_ang_vel]
+
+        return measurements

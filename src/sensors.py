@@ -9,6 +9,7 @@ Proprioceptive sensors measure the robot's relationship to its past states. This
 """
 
 import random
+import pandas as pd
 from abc import ABC, abstractmethod
 from math import pi
 from utils import BearingRange
@@ -139,7 +140,15 @@ class WheelEncoder(SensorInterface):
         measured_y_vel = random.gauss(commanded_y_vel, self.y_noise + abs(commanded_y_vel) * self.prop_y_noise)
         measured_ang_vel = random.gauss(commanded_ang_vel, self.ang_noise + abs(commanded_ang_vel) * self.prop_ang_noise)
 
-        return measured_x_vel, measured_y_vel, measured_ang_vel
+        odom_df = pd.DataFrame(
+            {
+                f"{self.name}_x_vel": [measured_x_vel],
+                f"{self.name}_y_vel": [measured_y_vel],
+                f"{self.name}_ang_vel": [measured_ang_vel],
+            }
+        )
+
+        return odom_df
 
 
 class LandmarkPinger(SensorInterface):
@@ -192,7 +201,7 @@ class LandmarkPinger(SensorInterface):
         Reports noisy measurements of the bearing and range between the robot and all nearby landmarks.
         """
         gt_bearing_ranges = self.robot.env.get_proximity_to_landmarks()
-        noisy_bearing_ranges = []
+        noisy_bearing_ranges = {}
 
         for lm in gt_bearing_ranges:
             if lm.range <= self.max_range:
@@ -202,7 +211,7 @@ class LandmarkPinger(SensorInterface):
                 noisy_bearing = float("inf")
                 noisy_range = float("inf")
 
-            noisy_br = BearingRange(lm.landmark_id, noisy_bearing, noisy_range)
-            noisy_bearing_ranges.append(noisy_br)
+            noisy_bearing_ranges[f"lmp_bearing_{lm.landmark_id}"] = noisy_bearing
+            noisy_bearing_ranges[f"lmp_range_{lm.landmark_id}"] = noisy_range
 
-        return noisy_bearing_ranges
+        return pd.DataFrame([noisy_bearing_ranges])
