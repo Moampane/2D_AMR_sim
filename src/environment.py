@@ -6,8 +6,9 @@ The Environment class models the world that the robots navigate in. The world is
 Critically, the environment tracks the robot's state. In this case, the robot's state is a vector that includes three state variables: x position, y position, and heading.
 """
 
+import math
+import pandas as pd
 from utils import Position, Pose, Bounds, Landmark, BearingRange
-
 
 class Environment:
     """
@@ -25,8 +26,8 @@ class Environment:
         self,
         dimensions: Bounds,
         dt: float,
-        obstacles: list[Bounds],
-        landmarks: list[Landmark],
+        init_obstacles: list[Bounds],
+        init_landmarks: list[Landmark],
         robot_starting_pose: Pose,
     ):
         """
@@ -35,25 +36,34 @@ class Environment:
         Args:
             dimensions: the horizontal and vertical size of the world
             dt: the length of each timestep, in seconds
-            obstacles: a list of obstacles
-            landmarks: a list of landmarks
+            init_obstacles: a list of obstacles
+            init_landmarks: a list of landmarks
             robot_starting_pose: the initial position and heading of the robot
         """
-        # TODO: set the dimensions property to the parameter value
-        self.DIMENSIONS = None
+        self.world_bounds = dimensions
+        self.timestep = dt
+        self.time = 0.0
 
-        # TODO: set the timestep size property to the parameter value
-        self.DT = None
+        # Test robot_starting_pose is within the world
+        assert dimensions.within_bounds(robot_starting_pose.pos)
 
-        # TODO: set the current time to zero
-        self.time = None
+        # Test obstacles are in the world and robot is not in them
+        for obs in init_obstacles:
+            assert dimensions.within_x(obs.x_min)
+            assert dimensions.within_x(obs.x_max)
+            assert dimensions.within_y(obs.y_min)
+            assert dimensions.within_y(obs.y_max)
 
-        # TODO: set the obstacles and landmarks properties to the parameter lists
-        self.OBSTACLES = None
-        self.LANDMARKS = None
+            assert not obs.within_bounds(robot_starting_pose.pos)
 
-        # TODO: set the robot pose property to the parameter value
-        self.robot_pose = None
+        # Test landmarks are in the world and are unique
+        for mark in init_landmarks:
+            assert dimensions.within_bounds(mark.pos)
+        assert len(set(l.id for l in init_landmarks)) == len(init_landmarks)
+
+        self.robot_pose = robot_starting_pose   # Theta is [-pi, pi]
+        self.obstacles = init_obstacles
+        self.landmarks = init_landmarks
 
     def robot_step(self, dx: float, dy: float, dtheta: float):
         """
@@ -67,8 +77,15 @@ class Environment:
         Returns:
             Nothing, but update the robot_pose property at the end
         """
-        # TODO: fill in the function
-        pass
+        # Get valid dx and dy
+        dx, dy = self.is_valid_motion(dx, dy)
+
+        # Set new robot pose
+        curr_x, curr_y, curr_theta = self.robot_pose.pos.x, self.robot_pose.pos.y, self.robot_pose.theta
+        self.robot_pose = Pose(Position(curr_x + dx, curr_y + dy), (curr_theta + dtheta + math.pi) % (2 * math.pi) - math.pi)
+
+        # Take timestep
+        self.time += self.timestep
 
     def is_valid_motion(self, dx: float, dy: float):
         """
@@ -82,8 +99,19 @@ class Environment:
             dx: change in x position that should be executed
             dy: change in y position that should be executed
         """
-        # TODO: fill in the function
-        pass
+        # TODO: could make it so robot goes to the bound (world or obstacle wall), but would require knowing what is invalidating the position
+        new_x = self.robot_pose.pos.x
+        new_y = self.robot_pose.pos.y
+
+        # Check new x
+        if self.is_valid_position(Position(new_x + dx, new_y)):
+            new_x += dx
+
+        # Check new y
+        if self.is_valid_position(Position(new_x, new_y + dy)):
+            new_y += dy
+
+        return new_x, new_y
 
     def is_valid_position(self, position: Position):
         """
@@ -95,33 +123,72 @@ class Environment:
         Returns:
             true if the position is valid and false otherwise
         """
-        # TODO: fill in the function
-        pass
+        for ob in self.obstacles:
+            if ob.within_bounds(position):
+                return False
 
-    def get_robot_pose(self):
+        return self.world_bounds.within_bounds(position)
+
+    def get_robot_pose(self) -> Pose:
         """
         Return the true robot pose.
         """
-        # TODO: fill in the function
-        pass
+        return self.robot_pose
 
     def get_proximity_to_landmarks(self):
         """
         Return a list of the robot's true range and bearing to all landmarks.
         """
-        # TODO: fill in the function
-        pass
+        proximity = []  # List of BearingRanges, contains landmark_id, bearing, and range
+
+        for mark in self.landmarks:
+            dx = mark.pos.x - self.robot_pose.pos.x
+            dy = mark.pos.y - self.robot_pose.pos.y
+            dist = math.sqrt(dx * dx + dy * dy)
+
+            bearing = math.atan2(dy, dx) - self.robot_pose.theta
+            bearing = (bearing + math.pi) % (2 * math.pi) - math.pi
+            proximity.append(BearingRange(mark.id, bearing, dist))
+
+        return proximity
 
     def take_state_snapshot(self):
         """
         Return true state information about this timestep, including time, robot position, and the robot's bearing/range to landmarks, in a table format.
         """
-        # TODO: fill in the function
-        pass
+        proximities = self.get_proximity_to_landmarks()
+        curr_pose = self.get_robot_pose()
+
+        data = {"Time": self.time, "x": curr_pose.pos.x, "y": curr_pose.pos.y, "Theta": curr_pose.theta}
+
+        for mark in proximities:
+            lm_id = mark.landmark_id
+            data[f"Bearing_{lm_id}"] = mark.bearing
+            data[f"Range_{lm_id}"] = mark.range
+
+        return pd.DataFrame([data])
 
     def get_environment_info(self):
         """
         Return static information about the environment, including dimensions, timestep size, locations and dimensions of obstacles, and locations of landmarks.
         """
-        # TODO: fill in the function
-        pass
+        data = {
+            "min_x": self.world_bounds.x_min,
+            "max_x": self.world_bounds.x_max,
+            "min_y": self.world_bounds.y_min,
+            "max_y": self.world_bounds.y_max,
+            "timestep_size": self.timestep
+            }
+
+        for mark in self.landmarks:
+            lm_id = mark.id
+            data[f"lm_{lm_id}_x"] = mark.pos.x
+            data[f"lm_{lm_id}_y"] = mark.pos.y
+
+        for idx, obs in enumerate(self.obstacles):
+            data[f"obs_{idx}_min_x"] = obs.x_min
+            data[f"obs_{idx}_max_x"] = obs.x_max
+            data[f"obs_{idx}_min_y"] = obs.y_min
+            data[f"obs_{idx}_max_y"] = obs.y_max
+
+        return pd.DataFrame([data])
