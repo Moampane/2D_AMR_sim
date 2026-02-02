@@ -24,9 +24,7 @@ class Robot:
         Args:
             env: the environment this robot is operating in
         """
-        # TODO: set the environment property to the parameter value
-        self.env = None
-        # TODO: initialize the sensors property as an empty list
+        self.env = env
         self.sensors = []
 
     def robot_step_differential(self, lin_vel: float, ang_vel: float):
@@ -57,10 +55,18 @@ class Robot:
         Returns:
             dx: change in x position
             dy: change in y position
-            d-theta: change in heading
+            dtheta: change in heading
         """
-        # TODO: fill in the function
-        pass
+        # Calculate change in robot state variables
+        timestep = self.env.timestep
+        dx = x_vel * timestep
+        dy = y_vel * timestep
+        dtheta = ang_vel * timestep
+
+        # Apply change in robot state variables
+        self.env.robot_step(dx, dy, dtheta)
+
+        return dx, dy, dtheta
 
     def take_sensor_measurements(self):
         """
