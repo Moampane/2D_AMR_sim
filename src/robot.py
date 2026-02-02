@@ -66,7 +66,7 @@ class Robot:
                 init_ang_noise = odom_info["ang_noise"],
                 x_noise_ratio = odom_info["x_noise_ratio"],
                 y_noise_ratio = odom_info["y_noise_ratio"],
-                angular_noise_ratio = odom_info["angular_noise_ratio"],
+                angular_noise_ratio = odom_info["ang_noise_ratio"],
             )
         }
 
