@@ -162,8 +162,9 @@ class LandmarkPinger(SensorInterface):
         name="landmark_pinger",
         interval=1.0,
         init_range_noise=0.5,
-        init_range_prop_noise=0.05,
+        init_range_noise_ratio=0.05,
         init_bearing_noise=pi / 6,
+        init_bearing_noise_ratio=0.03,
         init_max_range=10.0,
     ):
         """
@@ -175,14 +176,16 @@ class LandmarkPinger(SensorInterface):
             interval (float): period between measurements
             init_max_range (int): maximum distance from a beacon for it to be visible
             init_range_noise (float): absolute noise for range stdev
-            init_range_prop_noise (float): porportional noise for range stdev
+            init_range_noise_ratio (float): proportional noise for range stdev
             init_bearing_noise (float): absolute noise for bearing stdev
+            init_range_noise_ratio (float): proportional noise for range stdev
         """
         super().__init__(name, robot, interval)
         self.max_range = init_max_range  # meters
         self.range_noise = init_range_noise  # meters
-        self.range_noise_ratio = init_range_prop_noise
+        self.range_noise_ratio = init_range_noise_ratio
         self.bearing_noise = init_bearing_noise  # radians
+        self.bearing_noise_ratio = init_bearing_noise_ratio
 
     def sample(self):
         """
@@ -193,7 +196,7 @@ class LandmarkPinger(SensorInterface):
 
         for lm in gt_bearing_ranges:
             if lm.range <= self.max_range:
-                noisy_bearing = random.gauss(lm.bearing, self.bearing_noise)
+                noisy_bearing = random.gauss(lm.bearing, self.bearing_noise + lm.bearing * self.bearing_noise_ratio)
                 noisy_range = random.gauss(lm.range, self.range_noise + lm.range * self.range_noise_ratio)
             else:
                 noisy_bearing = float("inf")

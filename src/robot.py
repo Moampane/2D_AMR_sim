@@ -6,7 +6,7 @@ The Robot class models the robotic agent that explores the world. The robot is r
 
 import random
 from environment import Environment
-from sensors import SensorInterface
+from sensors import SensorInterface, WheelEncoder, LandmarkPinger
 
 
 class Robot:
@@ -26,7 +26,6 @@ class Robot:
             env: the environment this robot is operating in
         """
         self.env = env
-        self.sensors = []
 
         # Desired commands
         self.cmd_x_vel = 0.0    # m/s
@@ -42,6 +41,33 @@ class Robot:
         mtr_info = robot_info["Motor"]
         self.lin_noise = mtr_info["linear_noise"]
         self.ang_noise = mtr_info["angular_noise"]
+
+        # Setup sensors
+        lmp_info = sensor_info["LandmarkPinger"]
+        odom_info = sensor_info["Odometry"]
+        self.sensors = {
+            "LandmarkPinger": LandmarkPinger(
+                robot = self,
+                name = "LandmarkPinger",
+                interval = lmp_info["interval"],
+                init_max_range = lmp_info["max_range"],
+                init_range_noise = lmp_info["range_noise"],
+                init_range_noise_ratio = lmp_info["range_noise_ratio"],
+                init_bearing_noise = lmp_info["bearing_noise"],
+                init_bearing_noise_ratio = lmp_info["bearing_noise_ratio"]
+            ),
+            "Odometry": WheelEncoder(
+                robot = self,
+                name = "Odometry",
+                interval = odom_info["interval"],
+                init_x_noise = odom_info["x_noise"],
+                init_y_noise = odom_info["y_noise"],
+                init_ang_noise = odom_info["ang_noise"],
+                x_noise_ratio = odom_info["x_noise_ratio"],
+                y_noise_ratio = odom_info["y_noise_ratio"],
+                angular_noise_ratio = odom_info["angular_noise_ratio"],
+            )
+        }
 
     def robot_step_differential(self, lin_vel: float, ang_vel: float):
         """
