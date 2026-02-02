@@ -25,8 +25,8 @@ class Environment:
         self,
         dimensions: Bounds,
         dt: float,
-        obstacles: list[Bounds],
-        landmarks: list[Landmark],
+        init_obstacles: list[Bounds],
+        init_landmarks: list[Landmark],
         robot_starting_pose: Pose,
     ):
         """
@@ -35,16 +35,34 @@ class Environment:
         Args:
             dimensions: the horizontal and vertical size of the world
             dt: the length of each timestep, in seconds
-            obstacles: a list of obstacles
-            landmarks: a list of landmarks
+            init_obstacles: a list of obstacles
+            init_landmarks: a list of landmarks
             robot_starting_pose: the initial position and heading of the robot
         """
-        self.DIMENSIONS = dimensions
-        self.DT = dt
+        self.world_bounds = dimensions
+        self.timestep = dt
         self.time = 0.0
-        self.OBSTACLES = obstacles
-        self.LANDMARKS = landmarks
+
+        # Test robot_starting_pose is within the world
+        assert dimensions.within_bounds(robot_starting_pose.pos)
+
+        # Test obstacles are in the world and robot is not in them
+        for obs in init_obstacles:
+            assert dimensions.within_x(obs.x_min)
+            assert dimensions.within_x(obs.x_max)
+            assert dimensions.within_y(obs.y_min)
+            assert dimensions.within_y(obs.y_max)
+
+            assert not obs.within_bounds(robot_starting_pose.pos)
+
+        # Test landmarks are in the world and are unique
+        for mark in init_landmarks:
+            assert dimensions.within_bounds(mark.pos)
+        assert len(set(l.id for l in init_landmarks)) == len(init_landmarks)
+
         self.robot_pose = robot_starting_pose
+        self.obstacles = init_obstacles
+        self.landmarks = init_landmarks
 
     def robot_step(self, dx: float, dy: float, dtheta: float):
         """
@@ -86,11 +104,11 @@ class Environment:
         Returns:
             true if the position is valid and false otherwise
         """
-        for ob in self.OBSTACLES:
+        for ob in self.obstacles:
             if ob.within_bounds(position):
                 return False
 
-        return self.DIMENSIONS.within_bounds(position)
+        return self.world_bounds.within_bounds(position)
 
     def get_robot_pose(self):
         """
