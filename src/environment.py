@@ -7,6 +7,7 @@ Critically, the environment tracks the robot's state. In this case, the robot's 
 """
 
 from utils import Position, Pose, Bounds, Landmark, BearingRange
+import math
 
 
 class Environment:
@@ -60,7 +61,7 @@ class Environment:
             assert dimensions.within_bounds(mark.pos)
         assert len(set(l.id for l in init_landmarks)) == len(init_landmarks)
 
-        self.robot_pose = robot_starting_pose
+        self.robot_pose = robot_starting_pose   # Theta is [0, 2pi]
         self.obstacles = init_obstacles
         self.landmarks = init_landmarks
 
@@ -76,8 +77,15 @@ class Environment:
         Returns:
             Nothing, but update the robot_pose property at the end
         """
-        # TODO: fill in the function
-        pass
+        # Get valid dx and dy
+        dx, dy = self.is_valid_motion(dx, dy)
+
+        # Set new robot pose
+        curr_x, curr_y, curr_theta = self.robot_pose.pos.x, self.robot_pose.pos.y, self.robot_pose.theta
+        self.robot_pose = Pose(Position(curr_x + dx, curr_y + dy), (curr_theta + dtheta) % 2 * math.pi)
+
+        # Take timestep
+        self.time += self.timestep
 
     def is_valid_motion(self, dx: float, dy: float):
         """
