@@ -8,6 +8,7 @@ Exteroceptive sensors measure the robot's relationship to the world. This includ
 Proprioceptive sensors measure the robot's relationship to its past states. This includes IMUs, wheel encoders, and anything else that measures how the robot's state is relatively changing, without relating the robot to the world.
 """
 
+import random
 from abc import ABC, abstractmethod
 from math import pi
 
@@ -83,8 +84,12 @@ class WheelEncoder(SensorInterface):
         robot: reference robot
         interval: period between measurements
         last_meas_t: time of last measurement
-        LIN_NOISE: absolute noise for linear velocity stdev
-        ANG_NOISE: absolute noise for angular velocity stdev
+        x_noise: absolute noise for x velocity stdev
+        y_noise: absolute noise for y velocity stdev
+        ang_noise: absolute noise for angular velocity stdev
+        prop_x_noise: proportional noise for x velocity
+        prop_y_noise: proportional noise for y velocity
+        prop_ang_noise: proportional noise for angular
     """
 
     def __init__(
@@ -95,6 +100,9 @@ class WheelEncoder(SensorInterface):
         init_x_noise=0.05,
         init_y_noise=0.05,
         init_ang_noise=0.03,
+        x_noise_ratio=0.05,
+        y_noise_ratio=0.05,
+        angular_noise_ratio=0.03,
     ):
         """
         Initialize an instance of the WheelEncoder class.
@@ -103,20 +111,34 @@ class WheelEncoder(SensorInterface):
             robot: reference robot
             name: reference identifier
             interval: period between measurements
-            linear_noise_ratio: proportional noise for linear velocity
+            init_x_noise: absolute noise for x velocity stdev
+            init_y_noise: absolute noise for y velocity stdev
+            init_ang_noise: absolute noise for angular velocity stdev
+            x_noise_ratio: proportional noise for x velocity
+            y_noise_ratio: proportional noise for y velocity
             angular_noise_ratio: proportional noise for angular
         """
         super().__init__(name, robot, interval)
         self.x_noise = init_x_noise  # m/s
         self.y_noise = init_y_noise  # m/s
         self.ang_noise = init_ang_noise  # rad/s
+        self.prop_x_noise = x_noise_ratio
+        self.prop_y_noise = y_noise_ratio
+        self.prop_ang_noise = angular_noise_ratio
 
     def sample(self):
         """
         Sample the robot's linear and angular velocity.
         """
-        # TODO: fill in the function
-        pass
+        commanded_x_vel = self.robot.cmd_x_vel
+        commanded_y_vel = self.robot.cmd_y_vel
+        commanded_ang_vel = self.robot.cmd_ang_vel
+
+        measured_x_vel = random.gauss(commanded_x_vel, self.x_noise + abs(commanded_x_vel) * self.prop_x_noise)
+        measured_y_vel = random.gauss(commanded_y_vel, self.y_noise + abs(commanded_y_vel) * self.prop_y_noise)
+        measured_ang_vel = random.gauss(commanded_ang_vel, self.ang_noise + abs(commanded_ang_vel) * self.prop_ang_noise)
+
+        return measured_x_vel, measured_y_vel, measured_ang_vel
 
 
 class LandmarkPinger(SensorInterface):
