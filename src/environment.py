@@ -172,5 +172,23 @@ class Environment:
         """
         Return static information about the environment, including dimensions, timestep size, locations and dimensions of obstacles, and locations of landmarks.
         """
-        # TODO: fill in the function
-        pass
+        data = {
+            "min_x": self.world_bounds.x_min,
+            "max_x": self.world_bounds.x_max,
+            "min_y": self.world_bounds.y_min,
+            "max_y": self.world_bounds.y_max,
+            "timestep_size": self.timestep
+            }
+
+        for mark in self.landmarks:
+            lm_id = mark.id
+            data[f"lm_{lm_id}_x"] = mark.pos.x
+            data[f"lm_{lm_id}_y"] = mark.pos.y
+
+        for idx, obs in enumerate(self.obstacles):
+            data[f"obs_{idx}_min_x"] = obs.x_min
+            data[f"obs_{idx}_max_x"] = obs.x_max
+            data[f"obs_{idx}_min_y"] = obs.y_min
+            data[f"obs_{idx}_max_y"] = obs.y_max
+
+        return pd.DataFrame([data])
