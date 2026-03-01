@@ -100,16 +100,31 @@ class Environment:
             dy: change in y position that should be executed
         """
         # TODO: could make it so robot goes to the bound (world or obstacle wall), but would require knowing what is invalidating the position
-        new_x = self.robot_pose.pos.x
-        new_y = self.robot_pose.pos.y
+        x = self.robot_pose.pos.x
+        y = self.robot_pose.pos.y
 
-        # Check new x
-        if self.is_valid_position(Position(new_x + dx, new_y)):
-            new_x += dx
+        valid_combo = self.is_valid_position(Position(x + dx, y + dy))
+        valid_dx = self.is_valid_position(Position(x + dx, y))
+        valid_dy = self.is_valid_position(Position(x, y + dy))
 
-        # Check new y
-        if self.is_valid_position(Position(new_x, new_y + dy)):
-            new_y += dy
+        dx = dx if valid_combo or valid_dx else 0
+        dy = dy if valid_combo or valid_dy else 0
+
+        # # Check x and y
+        # if self.is_valid_position(Position(x + dx, y + dy)):
+        #     return dx, dy
+
+        # # Check new x
+        # if self.is_valid_position(Position(x + dx, y)):
+        #     pass
+        # else:
+        #     dx = 0
+
+        # # Check new y
+        # if self.is_valid_position(Position(x, y + dy)):
+        #     pass
+        # else:
+        #     dy = 0
 
         return dx, dy
 

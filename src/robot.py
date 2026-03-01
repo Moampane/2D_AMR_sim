@@ -8,6 +8,7 @@ import random
 import pandas as pd
 from environment import Environment
 from sensors import SensorInterface, WheelEncoder, LandmarkPinger
+from utils import floating_mod_zero
 
 
 class Robot:
@@ -133,7 +134,7 @@ class Robot:
         measurements = pd.DataFrame({"Time": [self.env.time]})
 
         for sensor in self.sensors.values():
-            if self.env.time - sensor.last_meas_t >= sensor.interval:
+            if floating_mod_zero(self.env.time, sensor.interval):
                 sensor.last_meas_t = self.env.time
                 measurements = pd.merge(
                     measurements,
