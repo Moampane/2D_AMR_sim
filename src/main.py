@@ -111,21 +111,21 @@ if __name__ == "__main__":
             odom_y_vel = curr_sensor_df.at[0,"Odometry_y_vel"]
             odom_ang_vel = curr_sensor_df.at[0,"Odometry_ang_vel"]
 
-            kf_state, _ = kf.predict(np.array([[odom_x_vel], [odom_y_vel], [odom_ang_vel]]))
+            kf.predict(np.array([[odom_x_vel], [odom_y_vel], [odom_ang_vel]]))
 
             if "GPS_x" in curr_sensor_df.columns:
                 gps_x = curr_sensor_df.at[0, "GPS_x"]
                 gps_y = curr_sensor_df.at[0, "GPS_y"]
                 gps = robot.sensors["GPS"]
 
-                kf_state, _ = kf.update(np.array([[gps_x], [gps_y]]), gps.H, gps.R)
+                kf.update(np.array([[gps_x], [gps_y]]), gps.H, gps.R)
             
             kf_history.append(
                 pd.DataFrame(
                     {
-                        "x": [kf_state[0][0]],
-                        "y": [kf_state[1][0]],
-                        "theta": [kf_state[0][0]],
+                        "x": [kf.x[0][0]],
+                        "y": [kf.x[1][0]],
+                        "theta": [kf.x[0][0]],
                     }
                 )
             )
