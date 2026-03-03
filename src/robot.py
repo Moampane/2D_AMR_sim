@@ -40,7 +40,7 @@ class Robot:
         self.act_ang_vel = 0.0    # rad/s
 
         # Physical properties
-        mtr_info = robot_info["Motor"]
+        mtr_info = robot_info["MotorCommands"]
         self.lin_noise = mtr_info["linear_noise"]
         self.ang_noise = mtr_info["angular_noise"]
 
@@ -52,11 +52,11 @@ class Robot:
                 robot = self,
                 name = "LandmarkPinger",
                 interval = lmp_info["interval"],
-                init_max_range = lmp_info["max_range"],
-                init_range_noise = lmp_info["range_noise"],
-                init_range_noise_ratio = lmp_info["range_noise_ratio"],
-                init_bearing_noise = lmp_info["bearing_noise"],
-                init_bearing_noise_ratio = lmp_info["bearing_noise_ratio"]
+                init_max_range = env.pinger_range,
+                init_range_noise = lmp_info["range_noise_const"],
+                init_range_noise_ratio = lmp_info["range_noise_prop"],
+                init_bearing_noise = lmp_info["bearing_noise_const"],
+                init_bearing_noise_ratio = lmp_info["bearing_noise_prop"],
             ),
             "Odometry": WheelEncoder(
                 robot = self,

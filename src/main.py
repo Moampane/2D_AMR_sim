@@ -2,7 +2,7 @@
 Main file for running the simulator.
 """
 
-import csv
+import csv, yaml, argparse
 import pandas as pd
 from pathlib import Path
 from environment import Environment
@@ -11,12 +11,51 @@ from utils import Position, Pose, Landmark, Bounds
 from viz import Visualizer
 
 if __name__ == "__main__":
+    # set up pathing and argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-y",
+        "--config",
+        type=Path,
+        default=Path("../input/config.yaml"),
+        help="Path to config.yaml file.",
+    )
+    parser.add_argument(
+        "-c",
+        "--cmds",
+        type=Path,
+        default=Path("../input/vel_cmd_example.csv"),
+        help="Path to motor commands file.",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=Path("../output/"),
+        help="Indicate the desired output folder.",
+    )
+    args = parser.parse_args()
+    CONFIG_PATH: Path = args.config
+    assert CONFIG_PATH.exists()
+    CMD_PATH: Path = args.cmds
+    assert CMD_PATH.exists()
+    OUTPUT_PATH: Path = args.output
+    assert OUTPUT_PATH.exists()
+
+    # pull config info
+    with open(CONFIG_PATH, "r") as f:
+        config = yaml.safe_load(f)
+        env_info = config["environment"]
+        robot_info = config["robot"]
+        sensor_info = config["sensors"]
+    
     # set up the environment
-    dimensions = Bounds(0, 10, 0, 10)
-    dt = 0.1
-    obstacles = [Bounds(6, 8, 2, 7), Bounds(1, 2, 8, 9)]
-    landmarks = [Landmark(Position(1, 1), 0), Landmark(Position(3, 3), 1), Landmark(Position(5, 5), 2)]
-    initial_robot_pose = Pose(Position(1, 1), 0.0)
+    dimensions = Bounds(0, env_info["width"], 0, env_info["height"])
+    dt = env_info["timestep"]
+    obstacles = [Bounds(dims[0], dims[1], dims[2], dims[3],) for dims in env_info["obstacles"]]
+    landmarks = [Landmark(Position(env_info["landmarks"][lm_idx][0], env_info["landmarks"][lm_idx][1]), lm_idx) for lm_idx in range(len(env_info["landmarks"]))]
+    initial_robot_pose = Pose(Position(env_info["robot_start"][0], env_info["robot_start"][1]), env_info["robot_start"][2])
+    pinger_range = env_info["pinger_range"]
 
     env = Environment(
         dimensions,
@@ -24,39 +63,13 @@ if __name__ == "__main__":
         obstacles,
         landmarks,
         initial_robot_pose,
+        pinger_range,
     )
-
-    # set up the robot
-    robot_info = {
-        "Motor": {
-            "linear_noise": 0.03,
-            "angular_noise": 0.05
-        }
-    }
-    sensor_info = {
-        "LandmarkPinger": {
-            "interval": 0.5,
-            "max_range": 3.0,
-            "range_noise": 0.1,
-            "range_noise_ratio": 0.05,
-            "bearing_noise": 0.08,
-            "bearing_noise_ratio": 0.0,
-        },
-        "Odometry": {
-            "interval": 0.1,
-            "x_noise": 0.05,
-            "y_noise": 0.05,
-            "ang_noise": 0.01,
-            "x_noise_ratio": 0.01,
-            "y_noise_ratio": 0.01,
-            "ang_noise_ratio": 0.1,
-        }
-    }
 
     robot = Robot(env, robot_info, sensor_info)
 
     # set up timekeeping
-    total_seconds = 20
+    total_seconds = env_info["runtime"]
     total_timesteps = total_seconds / env.timestep
 
     # set up logging
@@ -64,13 +77,12 @@ if __name__ == "__main__":
     sensor_data_history = []
 
     # set up input filepath and output filepaths
-    input_commands_filepath = "input/vel_cmd_example.csv"
-    output_ground_truth_filepath = "output/gt_data.csv"
-    output_sensor_data_filepath = "output/sensor_data.csv"
-    output_env_data_filepath = "output/env_data.csv"
+    output_ground_truth_filepath = OUTPUT_PATH / "gt_data.csv"
+    output_sensor_data_filepath = OUTPUT_PATH / "sensor_data.csv"
+    output_env_data_filepath = OUTPUT_PATH / "env_data.csv"
 
     # open up the instructions, pop the first
-    with open(input_commands_filepath, "r") as cmd:
+    with open(CMD_PATH, "r") as cmd:
         vel_cmds = csv.reader(cmd)
         next_cmd = next(vel_cmds)  # skip column names
         next_cmd = next(vel_cmds)
@@ -112,6 +124,5 @@ if __name__ == "__main__":
     env_data_df.to_csv(output_env_data_filepath, index=False)
 
     # Make visualizer
-    OUTPUT_PATH = Path("./output")
     visualizer = Visualizer(OUTPUT_PATH)
     visualizer.draw_all()

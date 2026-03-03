@@ -29,6 +29,7 @@ class Environment:
         init_obstacles: list[Bounds],
         init_landmarks: list[Landmark],
         robot_starting_pose: Pose,
+        pinger_range: float,
     ):
         """
         Initialize an instance of the Environment class.
@@ -43,6 +44,7 @@ class Environment:
         self.world_bounds = dimensions
         self.timestep = dt
         self.time = 0.0
+        self.pinger_range = pinger_range
 
         # Test robot_starting_pose is within the world
         assert dimensions.within_bounds(robot_starting_pose.pos)
@@ -110,22 +112,6 @@ class Environment:
         dx = dx if valid_combo or valid_dx else 0
         dy = dy if valid_combo or valid_dy else 0
 
-        # # Check x and y
-        # if self.is_valid_position(Position(x + dx, y + dy)):
-        #     return dx, dy
-
-        # # Check new x
-        # if self.is_valid_position(Position(x + dx, y)):
-        #     pass
-        # else:
-        #     dx = 0
-
-        # # Check new y
-        # if self.is_valid_position(Position(x, y + dy)):
-        #     pass
-        # else:
-        #     dy = 0
-
         return dx, dy
 
     def is_valid_position(self, position: Position):
@@ -192,7 +178,8 @@ class Environment:
             "max_x": self.world_bounds.x_max,
             "min_y": self.world_bounds.y_min,
             "max_y": self.world_bounds.y_max,
-            "timestep_size": self.timestep
+            "timestep_size": self.timestep,
+            "pinger_range": self.pinger_range,
             }
 
         for mark in self.landmarks:

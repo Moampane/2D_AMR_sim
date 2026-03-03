@@ -79,13 +79,13 @@ class Visualizer:
             ax.add_patch(rect)
 
         # Plot landmarks
-        num_lms = 3
-        pinger_range = 1.0
-        for i in range(num_lms):
+        all_lm_cols = [col for col in self.env_info.columns if col.startswith("lm_")]
+        num_landmarks = len(all_lm_cols) // 2
+        for i in range(num_landmarks):
             # Plot pinging range circle
             circle = patches.Circle(
                 (self.env_info[f"lm_{i}_x"].iloc[0], self.env_info[f"lm_{i}_y"].iloc[0]),
-                pinger_range,
+                self.env_info["pinger_range"].iloc[0],
                 linewidth=1,
                 edgecolor="red",
                 facecolor="red",
