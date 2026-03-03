@@ -165,36 +165,21 @@ class Visualizer:
 
     def poses_from_gps(self):
         """
-        Given a DataFrame of GPS data with the following columns:
-        Time | GPS
-        Where GPS data is a Position dataclass with fields x and y.
-        Output a DataFrame of GPS pose data with the following columns:
-        Time | x | y | theta
-        Note: theta is set to NaN since GPS doesn't measure heading.
+        Adjusted to read from CSV columns: Time, GPS_x, GPS_y
+        Returns a DataFrame: Time | x | y | theta
         """
-        poses = []
+        # Filter the sensor log to only rows where GPS_x is not NaN
+        gps_data = self.sensor_log.dropna(subset=['GPS_x', 'GPS_y'])
 
-        for row in self.sensor_log.itertuples():
-            # Check if GPS data exists and is a Position object
-            if hasattr(row, "GPS") and row.GPS is not None:
-                try:
-                    # Access Position dataclass fields
-                    x = row.GPS.x
-                    y = row.GPS.y
+        # Create the poses DataFrame 
+        poses = pd.DataFrame({
+            "Time": gps_data["Time"],
+            "x": gps_data["GPS_x"],
+            "y": gps_data["GPS_y"],
+            "theta": np.nan  # GPS doesn't measure heading
+        })
 
-                    poses.append(
-                        {
-                            "Time": row.Time,
-                            "x": x,
-                            "y": y,
-                            "theta": np.nan,  # GPS doesn't measure heading
-                        }
-                    )
-                except (AttributeError, TypeError):
-                    # Skip if GPS is not a valid Position object
-                    continue
-
-        return pd.DataFrame(poses)
+        return poses.reset_index(drop=True)
 
     def plot_single_trajectory(
         self,
@@ -297,12 +282,12 @@ class Visualizer:
             self.poses_from_odom(),
             "red",
         )
-        # self.plot_single_trajectory(
-        #     "GPS Only",
-        #     self.poses_from_gps(),
-        #     "orange",
-        #     scatter=True,
-        # )
+        self.plot_single_trajectory(
+            "GPS Only",
+            self.poses_from_gps(),
+            "orange",
+            scatter=True,
+        )
         plt.savefig(self.output_path / "dataset_viz.png")
         print("Finished plotting at path: ")
         print(self.output_path / "dataset_viz.png")

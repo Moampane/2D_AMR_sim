@@ -7,7 +7,7 @@ The Robot class models the robotic agent that explores the world. The robot is r
 import random
 import pandas as pd
 from environment import Environment
-from sensors import SensorInterface, WheelEncoder, LandmarkPinger
+from sensors import WheelEncoder, LandmarkPinger, GPS
 from utils import floating_mod_zero
 
 
@@ -47,6 +47,7 @@ class Robot:
         # Setup sensors
         lmp_info = sensor_info["LandmarkPinger"]
         odom_info = sensor_info["Odometry"]
+        gps_info = sensor_info["GPS"]
         self.sensors = {
             "LandmarkPinger": LandmarkPinger(
                 robot = self,
@@ -68,7 +69,14 @@ class Robot:
                 x_noise_ratio = odom_info["x_noise_ratio"],
                 y_noise_ratio = odom_info["y_noise_ratio"],
                 angular_noise_ratio = odom_info["ang_noise_ratio"],
-            )
+            ),
+            "GPS": GPS(
+                robot = self,
+                name = "GPS",
+                interval = gps_info["interval"],
+                init_x_noise = gps_info["x_noise"],
+                init_y_noise = gps_info["y_noise"],
+            ),
         }
 
     def robot_step_differential(self, lin_vel: float, ang_vel: float):

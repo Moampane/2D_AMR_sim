@@ -215,3 +215,24 @@ class LandmarkPinger(SensorInterface):
             noisy_bearing_ranges[f"lmp_range_{lm.landmark_id}"] = round(noisy_range, 3)
 
         return pd.DataFrame([noisy_bearing_ranges])
+    
+class GPS(SensorInterface):
+    def __init__(self, name, robot, interval, init_x_noise, init_y_noise):
+        super().__init__(name, robot, interval)
+        self.x_noise = init_x_noise # meters
+        self.y_noise = init_y_noise # meters
+
+    def sample(self):
+        gt_robot_pose = self.robot.env.robot_pose
+        gt_x = gt_robot_pose.pos.x
+        gt_y = gt_robot_pose.pos.y
+
+        noisy_x = random.gauss(gt_x, self.x_noise)
+        noisy_y = random.gauss(gt_y, self.y_noise)
+
+        gps_reading = {
+            "GPS_x": noisy_x,
+            "GPS_y": noisy_y, 
+        }
+
+        return pd.DataFrame([gps_reading])
