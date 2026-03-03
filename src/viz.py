@@ -24,10 +24,12 @@ class Visualizer:
         gt_log_path = output_path / "gt_data.csv"
         sensor_log_path = output_path / "sensor_data.csv"
         env_info_path = output_path / "env_data.csv"
+        kf_log_path = output_path / "kf_data.csv"
         
         self.gt_log = pd.read_csv(gt_log_path)
         self.sensor_log = pd.read_csv(sensor_log_path)
         self.env_info = pd.read_csv(env_info_path)
+        self.kf_log = pd.read_csv(kf_log_path)
 
     def plot_env(self):
         """
@@ -162,6 +164,10 @@ class Visualizer:
         df_poses = df_poses.rename(columns={'Theta': 'theta'})
 
         return df_poses
+    
+    def poses_from_kf(self):
+        # Get relevant columns
+        return self.kf_log[['x', 'y', 'theta']].copy()
 
     def poses_from_gps(self):
         """
@@ -287,6 +293,11 @@ class Visualizer:
             self.poses_from_gps(),
             "orange",
             scatter=True,
+        )
+        self.plot_single_trajectory(
+            "Prediction",
+            self.poses_from_kf(),
+            "blue",
         )
         plt.savefig(self.output_path / "dataset_viz.png")
         print("Finished plotting at path: ")

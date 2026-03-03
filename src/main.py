@@ -4,14 +4,16 @@ Main file for running the simulator.
 
 import csv, yaml, argparse
 import pandas as pd
+import numpy as np
 from pathlib import Path
 from environment import Environment
 from robot import Robot
 from utils import Position, Pose, Landmark, Bounds
 from viz import Visualizer
+from kalman_filter import KalmanFilter
 
 if __name__ == "__main__":
-    # set up pathing and argparse
+    # setup pathing and argparse
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-y",
@@ -49,7 +51,7 @@ if __name__ == "__main__":
         robot_info = config["robot"]
         sensor_info = config["sensors"]
     
-    # set up the environment
+    # setup the environment
     dimensions = Bounds(0, env_info["width"], 0, env_info["height"])
     dt = env_info["timestep"]
     obstacles = [Bounds(dims[0], dims[1], dims[2], dims[3],) for dims in env_info["obstacles"]]
@@ -66,20 +68,26 @@ if __name__ == "__main__":
         pinger_range,
     )
 
+    # setup the robot
     robot = Robot(env, robot_info, sensor_info)
 
-    # set up timekeeping
+    # setup the Kalman filter
+    kf = KalmanFilter(dt, initial_robot_pose.to_array())
+
+    # setup timekeeping
     total_seconds = env_info["runtime"]
     total_timesteps = total_seconds / env.timestep
 
-    # set up logging
+    # setup logging
     ground_truth_history = []
     sensor_data_history = []
+    predicted_states_history = []
 
-    # set up input filepath and output filepaths
+    # setup input filepath and output filepaths
     output_ground_truth_filepath = OUTPUT_PATH / "gt_data.csv"
     output_sensor_data_filepath = OUTPUT_PATH / "sensor_data.csv"
     output_env_data_filepath = OUTPUT_PATH / "env_data.csv"
+    output_predict_data_filepath = OUTPUT_PATH / "kf_data.csv"
 
     # open up the instructions, pop the first
     with open(CMD_PATH, "r") as cmd:
@@ -95,7 +103,23 @@ if __name__ == "__main__":
             ground_truth_history.append(env.take_state_snapshot())
 
             # Take sensor measurements and add it to the history
-            sensor_data_history.append(robot.take_sensor_measurements())
+            curr_sensor_df = robot.take_sensor_measurements()
+            sensor_data_history.append(curr_sensor_df)
+
+            # Make prediction
+            odom_x_vel = curr_sensor_df.at[0, "Odometry_x_vel"]
+            odom_y_vel = curr_sensor_df.at[0,"Odometry_y_vel"]
+            odom_ang_vel = curr_sensor_df.at[0,"Odometry_ang_vel"]
+            predicted_state, _ = kf.predict(np.array([[odom_x_vel], [odom_y_vel], [odom_ang_vel]]))
+            predicted_states_history.append(
+                pd.DataFrame(
+                    {
+                        "x": [predicted_state[0][0]],
+                        "y": [predicted_state[1][0]],
+                        "theta": [predicted_state[0][0]],
+                    }
+                )
+            )
 
             # Retrieve the next motor command from the input file
             if round(float(next_cmd[0]), 3) <= env.timestep * step:
@@ -122,6 +146,10 @@ if __name__ == "__main__":
     # Write environment data to a file
     env_data_df = env.get_environment_info()
     env_data_df.to_csv(output_env_data_filepath, index=False)
+
+    # Write predictions to a file
+    predictions_df = pd.concat(predicted_states_history, ignore_index=True)
+    predictions_df.to_csv(output_predict_data_filepath, index=False)
 
     # Make visualizer
     visualizer = Visualizer(OUTPUT_PATH)
