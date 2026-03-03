@@ -230,8 +230,8 @@ class GPS(SensorInterface):
         )
         self.R = np.array(
             [
-                [25, 0],
-                [0, 25],
+                [15, 0],
+                [0, 15],
             ]
         )
 

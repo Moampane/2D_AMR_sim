@@ -111,23 +111,24 @@ if __name__ == "__main__":
             odom_y_vel = curr_sensor_df.at[0,"Odometry_y_vel"]
             odom_ang_vel = curr_sensor_df.at[0,"Odometry_ang_vel"]
 
-            predicted_state, _ = kf.predict(np.array([[odom_x_vel], [odom_y_vel], [odom_ang_vel]]))
+            kf_state, _ = kf.predict(np.array([[odom_x_vel], [odom_y_vel], [odom_ang_vel]]))
 
             if "GPS_x" in curr_sensor_df.columns:
                 gps_x = curr_sensor_df.at[0, "GPS_x"]
                 gps_y = curr_sensor_df.at[0, "GPS_y"]
                 gps = robot.sensors["GPS"]
 
-                filtered_state, _ = kf.update(np.array([[gps_x], [gps_y]]), gps.H, gps.R)
-                kf_history.append(
-                    pd.DataFrame(
-                        {
-                            "x": [filtered_state[0][0]],
-                            "y": [filtered_state[1][0]],
-                            "theta": [filtered_state[0][0]],
-                        }
-                    )
+                kf_state, _ = kf.update(np.array([[gps_x], [gps_y]]), gps.H, gps.R)
+            
+            kf_history.append(
+                pd.DataFrame(
+                    {
+                        "x": [kf_state[0][0]],
+                        "y": [kf_state[1][0]],
+                        "theta": [kf_state[0][0]],
+                    }
                 )
+            )
 
             # Retrieve the next motor command from the input file
             if round(float(next_cmd[0]), 3) <= env.timestep * step:
