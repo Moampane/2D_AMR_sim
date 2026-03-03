@@ -295,7 +295,7 @@ class Visualizer:
             scatter=True,
         )
         self.plot_single_trajectory(
-            "Prediction",
+            "Filtered",
             self.poses_from_kf(),
             "blue",
         )

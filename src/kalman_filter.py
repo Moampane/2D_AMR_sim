@@ -32,28 +32,37 @@ class KalmanFilter():
         self.x = self.F @ self.x + self.B @ u
         self.P = self.F @ self.P @ self.F.T + self.Q
         return self.x, self.P
+    
+    def update(self, z, H, R):
+        S = H @ self.P @ H.T + R
+        K = self.P @ H.T @ np.linalg.inv(S)
+        y = z - H @ self.x
+        self.x = self.x + K @ y
+        self.P = self.P - K @ H @ self.P
+
+        return self.x, self.P
 
     def get_Q(self):
         """
         Generate white noise to apply to the process model after each prediction.
         """
-        stdev = 0.1
+        stdev = 0.25
         return np.array(
             [
                 [
-                    random.gauss(0, stdev),
-                    random.gauss(0, stdev),
-                    random.gauss(0, stdev),
-                ],
-                [
-                    random.gauss(0, stdev),
+                    abs(random.gauss(0, stdev)),
                     random.gauss(0, stdev),
                     random.gauss(0, stdev),
                 ],
                 [
                     random.gauss(0, stdev),
+                    abs(random.gauss(0, stdev)),
+                    random.gauss(0, stdev),
+                ],
+                [
                     random.gauss(0, stdev),
                     random.gauss(0, stdev),
+                    abs(random.gauss(0, stdev)),
                 ],
             ]
         )

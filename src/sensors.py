@@ -10,6 +10,7 @@ Proprioceptive sensors measure the robot's relationship to its past states. This
 
 import random
 import pandas as pd
+import numpy as np
 from abc import ABC, abstractmethod
 from math import pi
 from utils import BearingRange
@@ -221,6 +222,18 @@ class GPS(SensorInterface):
         super().__init__(name, robot, interval)
         self.x_noise = init_x_noise # meters
         self.y_noise = init_y_noise # meters
+        self.H = np.array(
+            [
+                [1, 0, 0],
+                [0, 1, 0],
+            ]
+        )
+        self.R = np.array(
+            [
+                [25, 0],
+                [0, 25],
+            ]
+        )
 
     def sample(self):
         gt_robot_pose = self.robot.env.robot_pose
