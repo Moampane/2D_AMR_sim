@@ -44,7 +44,7 @@ class KalmanFilter:
         ]  # Remove Kalman gain's influence on theta because GPS only measures x and y
         y = z - H @ self.x
         self.x = self.x + K @ y
-        self.P = (np.eye(len(self.x)) - K @ H) @ self.P
+        self.P = self.P - K @ H @ self.P
 
         return self.x, self.P
 
@@ -52,22 +52,22 @@ class KalmanFilter:
         """
         Generate white noise to apply to the process model after each prediction.
         """
-        stdev = 0.5
+        stdev = 0.05
         return np.array(
             [
                 [
                     abs(random.gauss(0, stdev)),
-                    random.gauss(0, stdev),
-                    random.gauss(0, stdev),
+                    0,
+                    0,
                 ],
                 [
-                    random.gauss(0, stdev),
+                    0,
                     abs(random.gauss(0, stdev)),
-                    random.gauss(0, stdev),
+                    0,
                 ],
                 [
-                    random.gauss(0, stdev),
-                    random.gauss(0, stdev),
+                    0,
+                    0,
                     abs(random.gauss(0, stdev)),
                 ],
             ]

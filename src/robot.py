@@ -6,9 +6,10 @@ The Robot class models the robotic agent that explores the world. The robot is r
 
 import random
 import pandas as pd
+import math
 from environment import Environment
 from sensors import WheelEncoder, LandmarkPinger, GPS
-from utils import floating_mod_zero
+from utils import floating_mod_zero, NEAR_ZERO
 
 
 class Robot:
@@ -30,14 +31,16 @@ class Robot:
         self.env = env
 
         # Desired commands
-        self.cmd_x_vel = 0.0    # m/s
-        self.cmd_y_vel = 0.0    # m/s
-        self.cmd_ang_vel = 0.0    # rad/s
+        self.cmd_x_vel = 0.0  # m/s
+        self.cmd_y_vel = 0.0  # m/s
+        self.cmd_lin_vel = 0.0  # m/s
+        self.cmd_ang_vel = 0.0  # rad/s
 
         # Noisy / actual commands
-        self.act_x_vel = 0.0    # m/s
-        self.act_y_vel = 0.0    # m/s
-        self.act_ang_vel = 0.0    # rad/s
+        self.act_x_vel = 0.0  # m/s
+        self.act_y_vel = 0.0  # m/s
+        self.act_lin_vel = 0.0  # m/s
+        self.act_ang_vel = 0.0  # rad/s
 
         # Physical properties
         mtr_info = robot_info["MotorCommands"]
@@ -50,50 +53,73 @@ class Robot:
         gps_info = sensor_info["GPS"]
         self.sensors = {
             "LandmarkPinger": LandmarkPinger(
-                robot = self,
-                name = "LandmarkPinger",
-                interval = lmp_info["interval"],
-                init_max_range = env.pinger_range,
-                init_range_noise = lmp_info["range_noise_const"],
-                init_range_noise_ratio = lmp_info["range_noise_prop"],
-                init_bearing_noise = lmp_info["bearing_noise_const"],
-                init_bearing_noise_ratio = lmp_info["bearing_noise_prop"],
+                robot=self,
+                name="LandmarkPinger",
+                interval=lmp_info["interval"],
+                init_max_range=env.pinger_range,
+                init_range_noise=lmp_info["range_noise_const"],
+                init_range_noise_ratio=lmp_info["range_noise_prop"],
+                init_bearing_noise=lmp_info["bearing_noise_const"],
+                init_bearing_noise_ratio=lmp_info["bearing_noise_prop"],
             ),
             "Odometry": WheelEncoder(
-                robot = self,
-                name = "Odometry",
-                interval = odom_info["interval"],
-                init_x_noise = odom_info["x_noise"],
-                init_y_noise = odom_info["y_noise"],
-                init_ang_noise = odom_info["ang_noise"],
-                x_noise_ratio = odom_info["x_noise_ratio"],
-                y_noise_ratio = odom_info["y_noise_ratio"],
-                angular_noise_ratio = odom_info["ang_noise_ratio"],
+                robot=self,
+                name="Odometry",
+                interval=odom_info["interval"],
+                linear_noise_const=odom_info["linear_noise_const"],  # m/s
+                linear_noise_prop=odom_info["linear_noise_prop"],  # m/s
+                angular_noise_const=odom_info["angular_noise_const"],
+                angular_noise_prop=odom_info["angular_noise_prop"],
+                diff_mode=robot_info["diff_drive"],
             ),
             "GPS": GPS(
-                robot = self,
-                name = "GPS",
-                interval = gps_info["interval"],
-                init_x_noise = gps_info["x_noise"],
-                init_y_noise = gps_info["y_noise"],
+                robot=self,
+                name="GPS",
+                interval=gps_info["interval"],
+                init_x_noise=gps_info["x_noise"],
+                init_y_noise=gps_info["y_noise"],
             ),
         }
 
     def robot_step_differential(self, lin_vel: float, ang_vel: float):
         """
-        Differential-drive mode. Given forward linear and angular velocities, determine the robot's change in x, y, and heading and apply those changes in the environment.
-
-        Args:
-            lin_vel: input linear velocity command
-            ang_vel: input angular velocity command
+        Differential-drive mode. Given linear and angular velocities, update the position and heading of the agent in the environment.
 
         Returns:
-            dx: change in x position
-            dy: change in y position
-            d-theta: change in heading
+            the new position and heading of the agent
         """
-        # TODO: fill in the function
-        pass
+        # pocket the cmds
+        self.cmd_lin_vel = lin_vel
+        self.cmd_ang_vel = ang_vel
+
+        # noisify the execution proportionally
+        lin_vel = lin_vel * (1 + random.gauss(0, self.lin_noise))
+        ang_vel = ang_vel * (1 + random.gauss(0, self.ang_noise))
+
+        # pocket the actual
+        self.actual_lin_vel = lin_vel
+        self.actual_ang_vel = ang_vel
+
+        # linear only; drive in a straight line
+        if abs(ang_vel) < NEAR_ZERO:
+            dx = lin_vel * self.env.timestep * math.cos(self.env.robot_pose.theta)
+            dy = lin_vel * self.env.timestep * math.sin(self.env.robot_pose.theta)
+            dtheta = 0.0
+        # linear and angular; drive in an arc
+        else:
+            r = lin_vel / ang_vel
+            dtheta = ang_vel * self.env.timestep
+            dx = r * (
+                math.sin(self.env.robot_pose.theta + dtheta)
+                - math.sin(self.env.robot_pose.theta)
+            )
+            dy = -r * (
+                math.cos(self.env.robot_pose.theta + dtheta)
+                - math.cos(self.env.robot_pose.theta)
+            )
+
+        # pass deltas to the env
+        self.env.robot_step(dx, dy, dtheta)
 
     def robot_step_translational(self, x_vel: float, y_vel: float, ang_vel: float):
         """
@@ -110,9 +136,9 @@ class Robot:
             dtheta: change in heading
         """
         # Track commanded velocities
-        self.cmd_x_vel = x_vel   # m/s
-        self.cmd_y_vel = y_vel   # m/s
-        self.cmd_ang_vel = ang_vel   # rad/s
+        self.cmd_x_vel = x_vel  # m/s
+        self.cmd_y_vel = y_vel  # m/s
+        self.cmd_ang_vel = ang_vel  # rad/s
 
         # Make noisy commands
         x_vel = x_vel * (1 + random.gauss(0, self.lin_noise))
@@ -120,9 +146,9 @@ class Robot:
         ang_vel = ang_vel * (1 + random.gauss(0, self.ang_noise))
 
         # Track actual velocities
-        self.act_x_vel = x_vel   # m/s
-        self.act_y_vel = y_vel   # m/s
-        self.act_ang_vel = ang_vel   # rad/s
+        self.act_x_vel = x_vel  # m/s
+        self.act_y_vel = y_vel  # m/s
+        self.act_ang_vel = ang_vel  # rad/s
 
         # Calculate change in robot state variables
         timestep = self.env.timestep

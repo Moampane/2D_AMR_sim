@@ -26,7 +26,7 @@ if __name__ == "__main__":
         "-c",
         "--cmds",
         type=Path,
-        default=Path("../input/vel_cmd_example.csv"),
+        default=Path("../input/diff_cmd_example.csv"),
         help="Path to motor commands file.",
     )
     parser.add_argument(
@@ -111,58 +111,83 @@ if __name__ == "__main__":
     # open up the instructions, pop the first
     with open(CMD_PATH, "r") as cmd:
         vel_cmds = csv.reader(cmd)
-        next_cmd = next(vel_cmds)  # skip column names
+        next_cmd = next(vel_cmds)  # Skip column names
         next_cmd = next(vel_cmds)
-        current_x_vel = float(next_cmd[1])
-        current_y_vel = float(next_cmd[2])
-        current_ang_vel = float(next_cmd[3])
-        # iterate through each timestep
-        for step in range(int(total_timesteps) + 1):
-            # Take a ground truth snapshot and add it to the history
-            ground_truth_history.append(env.take_state_snapshot())
 
-            # Take sensor measurements and add it to the history
-            curr_sensor_df = robot.take_sensor_measurements()
-            sensor_data_history.append(curr_sensor_df)
+        if not robot_info["diff_drive"]:  # If translational drive
+            current_x_vel = float(next_cmd[1])
+            current_y_vel = float(next_cmd[2])
+            current_ang_vel = float(next_cmd[3])
+            # iterate through each timestep
+            for step in range(int(total_timesteps) + 1):
+                # Take a ground truth snapshot and add it to the history
+                ground_truth_history.append(env.take_state_snapshot())
 
-            # Iterate Kalman Filter
-            odom_x_vel = curr_sensor_df.at[0, "Odometry_x_vel"]
-            odom_y_vel = curr_sensor_df.at[0, "Odometry_y_vel"]
-            odom_ang_vel = curr_sensor_df.at[0, "Odometry_ang_vel"]
+                # Take sensor measurements and add it to the history
+                curr_sensor_df = robot.take_sensor_measurements()
+                sensor_data_history.append(curr_sensor_df)
 
-            kf.predict(np.array([[odom_x_vel], [odom_y_vel], [odom_ang_vel]]))
+                # Iterate Kalman Filter
+                odom_x_vel = curr_sensor_df.at[0, "Odometry_x_vel"]
+                odom_y_vel = curr_sensor_df.at[0, "Odometry_y_vel"]
+                odom_ang_vel = curr_sensor_df.at[0, "Odometry_ang_vel"]
 
-            if "GPS_x" in curr_sensor_df.columns:
-                gps_x = curr_sensor_df.at[0, "GPS_x"]
-                gps_y = curr_sensor_df.at[0, "GPS_y"]
-                gps = robot.sensors["GPS"]
+                kf.predict(np.array([[odom_x_vel], [odom_y_vel], [odom_ang_vel]]))
 
-                kf.update(np.array([[gps_x], [gps_y]]), gps.H, gps.R)
+                if "GPS_x" in curr_sensor_df.columns:
+                    gps_x = curr_sensor_df.at[0, "GPS_x"]
+                    gps_y = curr_sensor_df.at[0, "GPS_y"]
+                    gps = robot.sensors["GPS"]
 
-            kf_history.append(
-                pd.DataFrame(
-                    {
-                        "x": [kf.x[0][0]],
-                        "y": [kf.x[1][0]],
-                        "theta": [kf.x[2][0]],
-                    }
+                    kf.update(np.array([[gps_x], [gps_y]]), gps.H, gps.R)
+
+                kf_history.append(
+                    pd.DataFrame(
+                        {
+                            "x": [kf.x[0][0]],
+                            "y": [kf.x[1][0]],
+                            "theta": [kf.x[2][0]],
+                        }
+                    )
                 )
-            )
 
-            # Retrieve the next motor command from the input file
-            if round(float(next_cmd[0]), 3) <= env.timestep * step:
-                current_x_vel = float(next_cmd[1])
-                current_y_vel = float(next_cmd[2])
-                current_ang_vel = float(next_cmd[3])
-                try:
-                    next_cmd = next(vel_cmds)
-                except StopIteration:
-                    pass
+                # Retrieve the next motor command from the input file
+                if round(float(next_cmd[0]), 3) <= env.timestep * step:
+                    current_x_vel = float(next_cmd[1])
+                    current_y_vel = float(next_cmd[2])
+                    current_ang_vel = float(next_cmd[3])
+                    try:
+                        next_cmd = next(vel_cmds)
+                    except StopIteration:
+                        pass
 
-            # Execute the motor command
-            robot.robot_step_translational(
-                current_x_vel, current_y_vel, current_ang_vel
-            )
+                # Execute the motor command
+                robot.robot_step_translational(
+                    current_x_vel, current_y_vel, current_ang_vel
+                )
+        else:
+            current_lin_vel = float(next_cmd[1])
+            current_ang_vel = float(next_cmd[2])
+            # iterate through each timestep
+            for step in range(int(total_timesteps) + 1):
+                # Take a ground truth snapshot and add it to the history
+                ground_truth_history.append(env.take_state_snapshot())
+
+                # Take sensor measurements and add it to the history
+                curr_sensor_df = robot.take_sensor_measurements()
+                sensor_data_history.append(curr_sensor_df)
+
+                # Retrieve the next motor command from the input file
+                if round(float(next_cmd[0]), 3) <= env.timestep * step:
+                    current_lin_vel = float(next_cmd[1])
+                    current_ang_vel = float(next_cmd[2])
+                    try:
+                        next_cmd = next(vel_cmds)
+                    except StopIteration:
+                        pass
+
+                # Execute the motor command
+                robot.robot_step_differential(current_lin_vel, current_ang_vel)
 
     # at the end, write the histories into output files
     # Write ground_truth_history to a file
@@ -178,9 +203,9 @@ if __name__ == "__main__":
     env_data_df.to_csv(output_env_data_filepath, index=False)
 
     # Write predictions to a file
-    kf_df = pd.concat(kf_history, ignore_index=True)
-    kf_df.to_csv(output_predict_data_filepath, index=False)
+    # kf_df = pd.concat(kf_history, ignore_index=True)
+    # kf_df.to_csv(output_predict_data_filepath, index=False)
 
     # Make visualizer
-    visualizer = Visualizer(OUTPUT_PATH)
+    visualizer = Visualizer(OUTPUT_PATH, robot_info["diff_drive"])
     visualizer.draw_all()

@@ -100,12 +100,11 @@ class WheelEncoder(SensorInterface):
         robot,
         name="wheel_encoder",
         interval=0.1,
-        init_x_noise=0.05,
-        init_y_noise=0.05,
-        init_ang_noise=0.03,
-        x_noise_ratio=0.05,
-        y_noise_ratio=0.05,
-        angular_noise_ratio=0.03,
+        linear_noise_const=0.05,  # m/s
+        linear_noise_prop=0.01,  # m/s
+        angular_noise_const=0.1,
+        angular_noise_prop=0.1,
+        diff_mode=False,
     ):
         """
         Initialize an instance of the WheelEncoder class.
@@ -122,39 +121,56 @@ class WheelEncoder(SensorInterface):
             angular_noise_ratio: proportional noise for angular
         """
         super().__init__(name, robot, interval)
-        self.x_noise = init_x_noise  # m/s
-        self.y_noise = init_y_noise  # m/s
-        self.ang_noise = init_ang_noise  # rad/s
-        self.prop_x_noise = x_noise_ratio
-        self.prop_y_noise = y_noise_ratio
-        self.prop_ang_noise = angular_noise_ratio
+        self.lin_noise = linear_noise_const  # m/s
+        self.prop_lin_noise = linear_noise_prop
+        self.ang_noise = angular_noise_const  # rad/s
+        self.prop_ang_noise = angular_noise_prop
+        self.differential_drive = diff_mode
 
     def sample(self):
         """
         Sample the robot's linear and angular velocity.
         """
-        commanded_x_vel = self.robot.cmd_x_vel
-        commanded_y_vel = self.robot.cmd_y_vel
         commanded_ang_vel = self.robot.cmd_ang_vel
-
-        measured_x_vel = random.gauss(
-            commanded_x_vel, self.x_noise + abs(commanded_x_vel) * self.prop_x_noise
-        )
-        measured_y_vel = random.gauss(
-            commanded_y_vel, self.y_noise + abs(commanded_y_vel) * self.prop_y_noise
-        )
         measured_ang_vel = random.gauss(
             commanded_ang_vel,
             self.ang_noise + abs(commanded_ang_vel) * self.prop_ang_noise,
         )
 
-        odom_df = pd.DataFrame(
-            {
-                f"{self.name}_x_vel": [round(measured_x_vel, 3)],
-                f"{self.name}_y_vel": [round(measured_y_vel, 3)],
-                f"{self.name}_ang_vel": [round(measured_ang_vel, 3)],
-            }
-        )
+        if not self.differential_drive:
+            commanded_x_vel = self.robot.cmd_x_vel
+            commanded_y_vel = self.robot.cmd_y_vel
+
+            measured_x_vel = random.gauss(
+                commanded_x_vel,
+                self.lin_noise + abs(commanded_x_vel) * self.prop_lin_noise,
+            )
+            measured_y_vel = random.gauss(
+                commanded_y_vel,
+                self.lin_noise + abs(commanded_y_vel) * self.prop_lin_noise,
+            )
+
+            odom_df = pd.DataFrame(
+                {
+                    f"{self.name}_x_vel": [round(measured_x_vel, 3)],
+                    f"{self.name}_y_vel": [round(measured_y_vel, 3)],
+                    f"{self.name}_ang_vel": [round(measured_ang_vel, 3)],
+                }
+            )
+        else:
+            commanded_lin_vel = self.robot.cmd_lin_vel
+
+            measured_lin_vel = random.gauss(
+                commanded_lin_vel,
+                self.lin_noise + abs(commanded_lin_vel) * self.prop_lin_noise,
+            )
+
+            odom_df = pd.DataFrame(
+                {
+                    f"{self.name}_lin_vel": [round(measured_lin_vel, 3)],
+                    f"{self.name}_ang_vel": [round(measured_ang_vel, 3)],
+                }
+            )
 
         return odom_df
 
@@ -245,8 +261,8 @@ class GPS(SensorInterface):
         )
         self.R = np.array(
             [
-                [25, 0],
-                [0, 25],
+                [50, 0],
+                [0, 50],
             ]
         )
 

@@ -16,6 +16,7 @@ class Visualizer:
     def __init__(
         self,
         output_path: Path,
+        diff_drive: bool,
     ):
         """
         Initialize the visualizer class.
@@ -25,11 +26,12 @@ class Visualizer:
         sensor_log_path = output_path / "sensor_data.csv"
         env_info_path = output_path / "env_data.csv"
         kf_log_path = output_path / "kf_data.csv"
-        
+
         self.gt_log = pd.read_csv(gt_log_path)
         self.sensor_log = pd.read_csv(sensor_log_path)
         self.env_info = pd.read_csv(env_info_path)
         self.kf_log = pd.read_csv(kf_log_path)
+        self.diff_mode = diff_drive
 
     def plot_env(self):
         """
@@ -42,8 +44,14 @@ class Visualizer:
         ax.set_title(f"Environment Map")
 
         # Set up the plot boundaries
-        world_min_x, world_max_x = self.env_info["min_x"].iloc[0], self.env_info["max_x"].iloc[0]
-        world_min_y, world_max_y = self.env_info["min_y"].iloc[0], self.env_info["max_y"].iloc[0]
+        world_min_x, world_max_x = (
+            self.env_info["min_x"].iloc[0],
+            self.env_info["max_x"].iloc[0],
+        )
+        world_min_y, world_max_y = (
+            self.env_info["min_y"].iloc[0],
+            self.env_info["max_y"].iloc[0],
+        )
         ax.set_xlim(world_min_x - 1, world_max_x + 1)
         ax.set_ylim(world_min_y - 1, world_max_y + 1)
         ax.set_aspect("equal")
@@ -66,10 +74,19 @@ class Visualizer:
         # Plot obstacles
         num_obs = 2
         for i in range(num_obs):
-            width = self.env_info[f"obs_{i}_max_x"].iloc[0] - self.env_info[f"obs_{i}_min_x"].iloc[0]
-            height = self.env_info[f"obs_{i}_max_y"].iloc[0] - self.env_info[f"obs_{i}_min_y"].iloc[0]
+            width = (
+                self.env_info[f"obs_{i}_max_x"].iloc[0]
+                - self.env_info[f"obs_{i}_min_x"].iloc[0]
+            )
+            height = (
+                self.env_info[f"obs_{i}_max_y"].iloc[0]
+                - self.env_info[f"obs_{i}_min_y"].iloc[0]
+            )
             rect = patches.Rectangle(
-                (self.env_info[f"obs_{i}_min_x"].iloc[0], self.env_info[f"obs_{i}_min_y"].iloc[0]),
+                (
+                    self.env_info[f"obs_{i}_min_x"].iloc[0],
+                    self.env_info[f"obs_{i}_min_y"].iloc[0],
+                ),
                 width,
                 height,
                 linewidth=2,
@@ -86,7 +103,10 @@ class Visualizer:
         for i in range(num_landmarks):
             # Plot pinging range circle
             circle = patches.Circle(
-                (self.env_info[f"lm_{i}_x"].iloc[0], self.env_info[f"lm_{i}_y"].iloc[0]),
+                (
+                    self.env_info[f"lm_{i}_x"].iloc[0],
+                    self.env_info[f"lm_{i}_y"].iloc[0],
+                ),
                 self.env_info["pinger_range"].iloc[0],
                 linewidth=1,
                 edgecolor="red",
@@ -106,7 +126,10 @@ class Visualizer:
             )
             ax.annotate(
                 f"LM{i}",
-                (self.env_info[f"lm_{i}_x"].iloc[0], self.env_info[f"lm_{i}_y"].iloc[0]),
+                (
+                    self.env_info[f"lm_{i}_x"].iloc[0],
+                    self.env_info[f"lm_{i}_y"].iloc[0],
+                ),
                 xytext=(5, 5),
                 textcoords="offset points",
                 fontsize=10,
@@ -115,37 +138,43 @@ class Visualizer:
 
         ax.legend(loc="lower right")
         return fig, ax
-    
+
     def poses_from_odom(self):
         """
         Computes estimated pose by integrating odometry velocity over time.
         """
-        # Get initial starting position from Ground Truth (GT)
+        # Get initial starting position from Ground Truth
         x = self.gt_log["x"].iloc[0]
         y = self.gt_log["y"].iloc[0]
         theta = self.gt_log["Theta"].iloc[0]
-        
+
         poses = []
-        # Use timestep from env_info (ensure it's a scalar)
+        # Use timestep from env_info
         dt = self.env_info["timestep_size"].iloc[0]
 
         # Iterate through sensor logs
+
         for row in self.sensor_log.itertuples():
-            # Map CSV columns to variables
-            # Using getattr or dot notation based on your CSV headers
-            vx = row.Odometry_x_vel
-            vy = row.Odometry_y_vel
             w = row.Odometry_ang_vel
+            if not self.diff_mode:  # For translational
+                # Map CSV columns to variables
+                vx = row.Odometry_x_vel
+                vy = row.Odometry_y_vel
 
-            # Handle potential NaN/empty values in the first row
-            if np.isnan(vx): vx, vy, w = 0.0, 0.0, 0.0
+                # Dead reckoning integration
+                x += vx * dt
+                y += vy * dt
 
-            # Dead reckoning integration
-            x += vx * dt
-            y += vy * dt
+            else:  # For differential
+                v = row.Odometry_lin_vel
+
+                # Dead reckoning integration
+                x += np.cos(theta) * v * dt
+                y += np.sin(theta) * v * dt
+
             theta += w * dt
 
-            # 4. Wrap theta to [-pi, pi]
+            # Wrap theta to [-pi, pi]
             theta = (theta + np.pi) % (2 * np.pi) - np.pi
 
             poses.append({"Time": row.Time, "x": x, "y": y, "theta": theta})
@@ -158,16 +187,16 @@ class Visualizer:
         Converts time from decaseconds to seconds and renames Theta.
         """
         # Get relevant columns
-        df_poses = self.gt_log[['Time', 'x', 'y', 'Theta']].copy()
+        df_poses = self.gt_log[["Time", "x", "y", "Theta"]].copy()
 
         # Rename 'Theta' to 'theta' to match your required output
-        df_poses = df_poses.rename(columns={'Theta': 'theta'})
+        df_poses = df_poses.rename(columns={"Theta": "theta"})
 
         return df_poses
-    
+
     def poses_from_kf(self):
         # Get relevant columns
-        return self.kf_log[['x', 'y', 'theta']].copy()
+        return self.kf_log[["x", "y", "theta"]].copy()
 
     def poses_from_gps(self):
         """
@@ -175,15 +204,17 @@ class Visualizer:
         Returns a DataFrame: Time | x | y | theta
         """
         # Filter the sensor log to only rows where GPS_x is not NaN
-        gps_data = self.sensor_log.dropna(subset=['GPS_x', 'GPS_y'])
+        gps_data = self.sensor_log.dropna(subset=["GPS_x", "GPS_y"])
 
-        # Create the poses DataFrame 
-        poses = pd.DataFrame({
-            "Time": gps_data["Time"],
-            "x": gps_data["GPS_x"],
-            "y": gps_data["GPS_y"],
-            "theta": np.nan  # GPS doesn't measure heading
-        })
+        # Create the poses DataFrame
+        poses = pd.DataFrame(
+            {
+                "Time": gps_data["Time"],
+                "x": gps_data["GPS_x"],
+                "y": gps_data["GPS_y"],
+                "theta": np.nan,  # GPS doesn't measure heading
+            }
+        )
 
         return poses.reset_index(drop=True)
 
@@ -294,11 +325,14 @@ class Visualizer:
             "orange",
             scatter=True,
         )
-        self.plot_single_trajectory(
-            "Filtered",
-            self.poses_from_kf(),
-            "blue",
-        )
+        if not self.diff_mode:
+            self.plot_single_trajectory(
+                "Filtered",
+                self.poses_from_kf(),
+                "blue",
+            )
+        else:
+            pass
         plt.savefig(self.output_path / "dataset_viz.png")
         print("Finished plotting at path: ")
         print(self.output_path / "dataset_viz.png")
