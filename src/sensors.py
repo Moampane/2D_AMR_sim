@@ -137,9 +137,16 @@ class WheelEncoder(SensorInterface):
         commanded_y_vel = self.robot.cmd_y_vel
         commanded_ang_vel = self.robot.cmd_ang_vel
 
-        measured_x_vel = random.gauss(commanded_x_vel, self.x_noise + abs(commanded_x_vel) * self.prop_x_noise)
-        measured_y_vel = random.gauss(commanded_y_vel, self.y_noise + abs(commanded_y_vel) * self.prop_y_noise)
-        measured_ang_vel = random.gauss(commanded_ang_vel, self.ang_noise + abs(commanded_ang_vel) * self.prop_ang_noise)
+        measured_x_vel = random.gauss(
+            commanded_x_vel, self.x_noise + abs(commanded_x_vel) * self.prop_x_noise
+        )
+        measured_y_vel = random.gauss(
+            commanded_y_vel, self.y_noise + abs(commanded_y_vel) * self.prop_y_noise
+        )
+        measured_ang_vel = random.gauss(
+            commanded_ang_vel,
+            self.ang_noise + abs(commanded_ang_vel) * self.prop_ang_noise,
+        )
 
         odom_df = pd.DataFrame(
             {
@@ -206,22 +213,30 @@ class LandmarkPinger(SensorInterface):
 
         for lm in gt_bearing_ranges:
             if lm.range <= self.max_range:
-                noisy_bearing = random.gauss(lm.bearing, self.bearing_noise + lm.bearing * self.bearing_noise_ratio)
-                noisy_range = random.gauss(lm.range, self.range_noise + lm.range * self.range_noise_ratio)
+                noisy_bearing = random.gauss(
+                    lm.bearing,
+                    self.bearing_noise + lm.bearing * self.bearing_noise_ratio,
+                )
+                noisy_range = random.gauss(
+                    lm.range, self.range_noise + lm.range * self.range_noise_ratio
+                )
             else:
                 noisy_bearing = float("inf")
                 noisy_range = float("inf")
 
-            noisy_bearing_ranges[f"lmp_bearing_{lm.landmark_id}"] = round(noisy_bearing, 3)
+            noisy_bearing_ranges[f"lmp_bearing_{lm.landmark_id}"] = round(
+                noisy_bearing, 3
+            )
             noisy_bearing_ranges[f"lmp_range_{lm.landmark_id}"] = round(noisy_range, 3)
 
         return pd.DataFrame([noisy_bearing_ranges])
-    
+
+
 class GPS(SensorInterface):
     def __init__(self, name, robot, interval, init_x_noise, init_y_noise):
         super().__init__(name, robot, interval)
-        self.x_noise = init_x_noise # meters
-        self.y_noise = init_y_noise # meters
+        self.x_noise = init_x_noise  # meters
+        self.y_noise = init_y_noise  # meters
         self.H = np.array(
             [
                 [1, 0, 0],
@@ -230,8 +245,8 @@ class GPS(SensorInterface):
         )
         self.R = np.array(
             [
-                [15, 0],
-                [0, 15],
+                [25, 0],
+                [0, 25],
             ]
         )
 
@@ -245,7 +260,7 @@ class GPS(SensorInterface):
 
         gps_reading = {
             "GPS_x": noisy_x,
-            "GPS_y": noisy_y, 
+            "GPS_y": noisy_y,
         }
 
         return pd.DataFrame([gps_reading])

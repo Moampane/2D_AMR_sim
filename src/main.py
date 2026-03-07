@@ -50,13 +50,32 @@ if __name__ == "__main__":
         env_info = config["environment"]
         robot_info = config["robot"]
         sensor_info = config["sensors"]
-    
+
     # setup the environment
     dimensions = Bounds(0, env_info["width"], 0, env_info["height"])
     dt = env_info["timestep"]
-    obstacles = [Bounds(dims[0], dims[1], dims[2], dims[3],) for dims in env_info["obstacles"]]
-    landmarks = [Landmark(Position(env_info["landmarks"][lm_idx][0], env_info["landmarks"][lm_idx][1]), lm_idx) for lm_idx in range(len(env_info["landmarks"]))]
-    initial_robot_pose = Pose(Position(env_info["robot_start"][0], env_info["robot_start"][1]), env_info["robot_start"][2])
+    obstacles = [
+        Bounds(
+            dims[0],
+            dims[1],
+            dims[2],
+            dims[3],
+        )
+        for dims in env_info["obstacles"]
+    ]
+    landmarks = [
+        Landmark(
+            Position(
+                env_info["landmarks"][lm_idx][0], env_info["landmarks"][lm_idx][1]
+            ),
+            lm_idx,
+        )
+        for lm_idx in range(len(env_info["landmarks"]))
+    ]
+    initial_robot_pose = Pose(
+        Position(env_info["robot_start"][0], env_info["robot_start"][1]),
+        env_info["robot_start"][2],
+    )
     pinger_range = env_info["pinger_range"]
 
     env = Environment(
@@ -108,8 +127,8 @@ if __name__ == "__main__":
 
             # Iterate Kalman Filter
             odom_x_vel = curr_sensor_df.at[0, "Odometry_x_vel"]
-            odom_y_vel = curr_sensor_df.at[0,"Odometry_y_vel"]
-            odom_ang_vel = curr_sensor_df.at[0,"Odometry_ang_vel"]
+            odom_y_vel = curr_sensor_df.at[0, "Odometry_y_vel"]
+            odom_ang_vel = curr_sensor_df.at[0, "Odometry_ang_vel"]
 
             kf.predict(np.array([[odom_x_vel], [odom_y_vel], [odom_ang_vel]]))
 
@@ -119,13 +138,13 @@ if __name__ == "__main__":
                 gps = robot.sensors["GPS"]
 
                 kf.update(np.array([[gps_x], [gps_y]]), gps.H, gps.R)
-            
+
             kf_history.append(
                 pd.DataFrame(
                     {
                         "x": [kf.x[0][0]],
                         "y": [kf.x[1][0]],
-                        "theta": [kf.x[0][0]],
+                        "theta": [kf.x[2][0]],
                     }
                 )
             )
@@ -141,7 +160,9 @@ if __name__ == "__main__":
                     pass
 
             # Execute the motor command
-            robot.robot_step_translational(current_x_vel, current_y_vel, current_ang_vel)
+            robot.robot_step_translational(
+                current_x_vel, current_y_vel, current_ang_vel
+            )
 
     # at the end, write the histories into output files
     # Write ground_truth_history to a file
