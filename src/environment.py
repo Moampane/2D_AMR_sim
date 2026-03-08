@@ -10,6 +10,7 @@ import math
 import pandas as pd
 from utils import Position, Pose, Bounds, Landmark, BearingRange
 
+
 class Environment:
     """
     A class that models the world simulation environment and the robot's state.
@@ -29,6 +30,7 @@ class Environment:
         init_obstacles: list[Bounds],
         init_landmarks: list[Landmark],
         robot_starting_pose: Pose,
+        pinger_range: float,
     ):
         """
         Initialize an instance of the Environment class.
@@ -43,6 +45,7 @@ class Environment:
         self.world_bounds = dimensions
         self.timestep = dt
         self.time = 0.0
+        self.pinger_range = pinger_range
 
         # Test robot_starting_pose is within the world
         assert dimensions.within_bounds(robot_starting_pose.pos)
@@ -61,7 +64,7 @@ class Environment:
             assert dimensions.within_bounds(mark.pos)
         assert len(set(l.id for l in init_landmarks)) == len(init_landmarks)
 
-        self.robot_pose = robot_starting_pose   # Theta is [-pi, pi]
+        self.robot_pose = robot_starting_pose  # Theta is [-pi, pi]
         self.obstacles = init_obstacles
         self.landmarks = init_landmarks
 
@@ -81,8 +84,15 @@ class Environment:
         dx, dy = self.is_valid_motion(dx, dy)
 
         # Set new robot pose
-        curr_x, curr_y, curr_theta = self.robot_pose.pos.x, self.robot_pose.pos.y, self.robot_pose.theta
-        self.robot_pose = Pose(Position(curr_x + dx, curr_y + dy), (curr_theta + dtheta + math.pi) % (2 * math.pi) - math.pi)
+        curr_x, curr_y, curr_theta = (
+            self.robot_pose.pos.x,
+            self.robot_pose.pos.y,
+            self.robot_pose.theta,
+        )
+        self.robot_pose = Pose(
+            Position(curr_x + dx, curr_y + dy),
+            (curr_theta + dtheta + math.pi) % (2 * math.pi) - math.pi,
+        )
 
         # Take timestep
         self.time += self.timestep
@@ -100,16 +110,15 @@ class Environment:
             dy: change in y position that should be executed
         """
         # TODO: could make it so robot goes to the bound (world or obstacle wall), but would require knowing what is invalidating the position
-        new_x = self.robot_pose.pos.x
-        new_y = self.robot_pose.pos.y
+        x = self.robot_pose.pos.x
+        y = self.robot_pose.pos.y
 
-        # Check new x
-        if self.is_valid_position(Position(new_x + dx, new_y)):
-            new_x += dx
+        valid_combo = self.is_valid_position(Position(x + dx, y + dy))
+        valid_dx = self.is_valid_position(Position(x + dx, y))
+        valid_dy = self.is_valid_position(Position(x, y + dy))
 
-        # Check new y
-        if self.is_valid_position(Position(new_x, new_y + dy)):
-            new_y += dy
+        dx = dx if valid_combo or valid_dx else 0
+        dy = dy if valid_combo or valid_dy else 0
 
         return dx, dy
 
@@ -139,7 +148,9 @@ class Environment:
         """
         Return a list of the robot's true range and bearing to all landmarks.
         """
-        proximity = []  # List of BearingRanges, contains landmark_id, bearing, and range
+        proximity = (
+            []
+        )  # List of BearingRanges, contains landmark_id, bearing, and range
 
         for mark in self.landmarks:
             dx = mark.pos.x - self.robot_pose.pos.x
@@ -148,7 +159,9 @@ class Environment:
 
             bearing = math.atan2(dy, dx) - self.robot_pose.theta
             bearing = (bearing + math.pi) % (2 * math.pi) - math.pi
-            proximity.append(BearingRange(mark.id, bearing, dist))
+            proximity.append(
+                BearingRange(landmark_id=mark.id, bearing=bearing, range=dist)
+            )
 
         return proximity
 
@@ -159,7 +172,12 @@ class Environment:
         proximities = self.get_proximity_to_landmarks()
         curr_pose = self.get_robot_pose()
 
-        data = {"Time": self.time, "x": round(curr_pose.pos.x, 3), "y": round(curr_pose.pos.y, 3), "Theta": round(curr_pose.theta, 3)}
+        data = {
+            "Time": self.time,
+            "x": round(curr_pose.pos.x, 3),
+            "y": round(curr_pose.pos.y, 3),
+            "Theta": round(curr_pose.theta, 3),
+        }
 
         for mark in proximities:
             lm_id = mark.landmark_id
@@ -177,8 +195,9 @@ class Environment:
             "max_x": self.world_bounds.x_max,
             "min_y": self.world_bounds.y_min,
             "max_y": self.world_bounds.y_max,
-            "timestep_size": self.timestep
-            }
+            "timestep_size": self.timestep,
+            "pinger_range": self.pinger_range,
+        }
 
         for mark in self.landmarks:
             lm_id = mark.id

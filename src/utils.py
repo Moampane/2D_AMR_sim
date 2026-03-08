@@ -6,7 +6,23 @@ There is nothing you need to edit or fill in within this file, but feel free to 
 
 from dataclasses import dataclass
 import random
+import numpy as np
+# --- Measurements ---
+NEAR_ZERO = 1e-6
+SEED = random.seed(107)
 
+def wrap_angle(angle: float):
+    """
+    Wrap a given angle to the range [-pi, pi]
+    """
+    angle = angle % (2 * np.pi)  # force in range [0, 2 pi)
+    if angle > np.pi:  # move to [-pi, pi)
+        angle -= 2 * np.pi
+    return angle
+
+def floating_mod_zero(n1: float, n2: float):
+    factor = n1 / n2
+    return abs(round(factor, 3) - float(round(factor))) < NEAR_ZERO
 
 @dataclass(unsafe_hash=True)
 class Position:
@@ -56,6 +72,9 @@ class Pose:
         Return in string format.
         """
         return self.pos.to_string() + f"T{self.theta}"
+    
+    def to_array(self):
+        return np.array([[self.pos.x], [self.pos.y], [self.theta]])
 
 
 @dataclass(frozen=True)
