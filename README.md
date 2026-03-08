@@ -33,35 +33,47 @@ In input/config.yaml you can adjust the environment, robot, and sensor parameter
 
 In the src/ directory you will find implementations of a lkf and ekf in kalman_filter.py and extended_kalman_filter.py respectively. Below are some graphs of the filter output compared to dead reckoning and gps only state estimations as well as the ground truth.
 
-![LKF Trajectory](images/lkf.png)
-_Linear Kalman Filter estimation_
+<div align="center">
+  <img src="images/lkf.png" alt="LKF Trajectory">
+  <p><em>Linear Kalman Filter estimation</em></p>
+</div>
 
 When using the LKF, the robot is being controlled omnidirectionally. The LKF only uses odometry and GPS measurements, because the state is directly related to the odometry and GPS measurements. They have a linear relationship.
 
-![EKF Trajectory](images/ekf_smaller_lm_ranges.png)
-_Extended Kalman Filter estimation_
+<div align="center">
+  <img src="images/ekf_smaller_lm_ranges.png" alt="EKF Trajectory">
+  <p><em>Extended Kalman Filter estimation</em></p>
+</div>
 
 When using the EKF, the robot is being controlled with differential drive. The EKF uses odometry, GPS, and a landmark pinger. The relationship between the state with odometry and landmark pinger measurements is non-linear. Linear and angular velocity from odometry does not have a linear relationship because we are using differential drive and the landmark pinger returns the range and bearing of the robot to the landmark(s) in range which is not linearly related to robot position and heading.
 
 From the visualizer we can see that when the robot is within pinging range of a landmark, the filters estimation is significantly closer to the ground truth, higher quality. However, even when within range of a landmark the estimation is not always spot on. The large turn in the bottom left, outside of pinging range is quite off. When the robot re-enters landmark 0, the filter is able to quickly correct even after the absence of a landmark. When the robot is in between the obstacles, it crashes into one. The dead reckoning is quite off from the ground truth, however the filter is able to mostly correct for the off odometry.
 
-![EKF Better Trajectory](images/ekf_larger_lm_ranges.png)
-_Extended Kalman Filter estimation with larger pinging range_
+<div align="center">
+  <img src="images/ekf_larger_lm_ranges.png" alt="EKF Better Trajectory">
+  <p><em>Extended Kalman Filter estimation with larger pinging range</em></p>
+</div>
 
 By increasing the pinging range, the robot is always within range of atleast one landmark. This significantly increases the quality of the filter, with the estimations being quite close to ground truth despite noisy gps data.
 
-![EKF GPS and odom Trajectory](images/ekf_gps_only.png)
-_Extended Kalman Filter estimation with only GPS udpates_
+<div align="center">
+  <img src="images/ekf_gps_only.png" alt="EKF GPS and odom Trajectory">
+  <p><em>Extended Kalman Filter estimation with only GPS updates</em></p>
+</div>
 
 By removing landmark pinger measurements, the ekf performs okay with only GPS measurements. However, after crashing into the wall, it takes significantly longer for it to correct.
 
-![EKF lms and odom Trajectory](images/ekf_lms_only.png)
-_Extended Kalman Filter estimation with only landmark pinger updates_
+<div align="center">
+  <img src="images/ekf_lms_only.png" alt="EKF lms and odom Trajectory">
+  <p><em>Extended Kalman Filter estimation with only landmark pinger updates</em></p>
+</div>
 
 By removing GPS measurements, the ekf state estimations are slightly less accurate, but still high quality, and able to correct for crashing into the wall. I believe the landmark pinger measurements increase the quality of the EKF more than the GPS, because the GPS was configured with a lot of noise.
 
-![EKF odom Trajectory](images/ekf_odom_only.png)
-_Extended Kalman Filter estimation with no update step_
+<div align="center">
+  <img src="images/ekf_odom_only.png" alt="EKF odom Trajectory">
+  <p><em>Extended Kalman Filter estimation with no update step</em></p>
+</div>
 
 By removing GPS and landmark pinger measurements, removing the update step, the EKF estimation is just dead reckoning. It is unable to correct and significantly impacted by crashing into the wall.
 
