@@ -26,11 +26,13 @@ class Visualizer:
         sensor_log_path = output_path / "sensor_data.csv"
         env_info_path = output_path / "env_data.csv"
         kf_log_path = output_path / "kf_data.csv"
+        ekf_log_path = output_path / "ekf_data.csv"
 
         self.gt_log = pd.read_csv(gt_log_path)
         self.sensor_log = pd.read_csv(sensor_log_path)
         self.env_info = pd.read_csv(env_info_path)
         self.kf_log = pd.read_csv(kf_log_path)
+        self.ekf_log = pd.read_csv(ekf_log_path)
         self.diff_mode = diff_drive
 
     def plot_env(self):
@@ -198,6 +200,10 @@ class Visualizer:
         # Get relevant columns
         return self.kf_log[["x", "y", "theta"]].copy()
 
+    def poses_from_ekf(self):
+        # Get relevant columns
+        return self.ekf_log[["x", "y", "theta"]].copy()
+
     def poses_from_gps(self):
         """
         Adjusted to read from CSV columns: Time, GPS_x, GPS_y
@@ -332,7 +338,11 @@ class Visualizer:
                 "blue",
             )
         else:
-            pass
+            self.plot_single_trajectory(
+                "Filtered",
+                self.poses_from_ekf(),
+                "blue",
+            )
         plt.savefig(self.output_path / "dataset_viz.png")
         print("Finished plotting at path: ")
         print(self.output_path / "dataset_viz.png")

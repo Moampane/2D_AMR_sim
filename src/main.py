@@ -11,6 +11,7 @@ from robot import Robot
 from utils import Position, Pose, Landmark, Bounds
 from viz import Visualizer
 from kalman_filter import KalmanFilter
+from extended_kalman_filter import ExtendedKalmanFilter
 
 if __name__ == "__main__":
     # setup pathing and argparse
@@ -90,8 +91,12 @@ if __name__ == "__main__":
     # setup the robot
     robot = Robot(env, robot_info, sensor_info)
 
-    # setup the Kalman filter
-    kf = KalmanFilter(dt, initial_robot_pose.to_array())
+    if not robot_info["diff_drive"]:
+        # setup the Kalman filter
+        kf = KalmanFilter(dt, initial_robot_pose.to_array())
+    else:
+        # setup extended Kalman filter
+        ekf = ExtendedKalmanFilter(dt, initial_robot_pose.to_array())
 
     # setup timekeeping
     total_seconds = env_info["runtime"]
@@ -101,12 +106,14 @@ if __name__ == "__main__":
     ground_truth_history = []
     sensor_data_history = []
     kf_history = []
+    ekf_history = []
 
     # setup input filepath and output filepaths
     output_ground_truth_filepath = OUTPUT_PATH / "gt_data.csv"
     output_sensor_data_filepath = OUTPUT_PATH / "sensor_data.csv"
     output_env_data_filepath = OUTPUT_PATH / "env_data.csv"
-    output_predict_data_filepath = OUTPUT_PATH / "kf_data.csv"
+    output_kf_data_filepath = OUTPUT_PATH / "kf_data.csv"
+    output_ekf_data_filepath = OUTPUT_PATH / "ekf_data.csv"
 
     # open up the instructions, pop the first
     with open(CMD_PATH, "r") as cmd:
@@ -177,6 +184,22 @@ if __name__ == "__main__":
                 curr_sensor_df = robot.take_sensor_measurements()
                 sensor_data_history.append(curr_sensor_df)
 
+                # Iterate EKF
+                odom_lin_vel = curr_sensor_df.at[0, "Odometry_lin_vel"]
+                odom_ang_vel = curr_sensor_df.at[0, "Odometry_ang_vel"]
+
+                ekf.predict(np.array([[odom_lin_vel], [odom_ang_vel]]))
+
+                ekf_history.append(
+                    pd.DataFrame(
+                        {
+                            "x": [ekf.x[0][0]],
+                            "y": [ekf.x[1][0]],
+                            "theta": [ekf.x[2][0]],
+                        }
+                    )
+                )
+
                 # Retrieve the next motor command from the input file
                 if round(float(next_cmd[0]), 3) <= env.timestep * step:
                     current_lin_vel = float(next_cmd[1])
@@ -203,8 +226,12 @@ if __name__ == "__main__":
     env_data_df.to_csv(output_env_data_filepath, index=False)
 
     # Write predictions to a file
-    # kf_df = pd.concat(kf_history, ignore_index=True)
-    # kf_df.to_csv(output_predict_data_filepath, index=False)
+    if not robot_info["diff_drive"]:
+        kf_df = pd.concat(kf_history, ignore_index=True)
+        kf_df.to_csv(output_kf_data_filepath, index=False)
+    else:
+        ekf_df = pd.concat(ekf_history, ignore_index=True)
+        ekf_df.to_csv(output_ekf_data_filepath, index=False)
 
     # Make visualizer
     visualizer = Visualizer(OUTPUT_PATH, robot_info["diff_drive"])

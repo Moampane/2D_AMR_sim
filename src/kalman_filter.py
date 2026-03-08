@@ -28,11 +28,10 @@ class KalmanFilter:
         self.P = np.eye(len(self.x)) * 50
         self.F = np.eye(len(self.x))
         self.B = np.eye(len(self.x)) * dt
-        self.Q = self.get_Q()
 
     def predict(self, u):
         self.x = self.F @ self.x + self.B @ u
-        self.P = self.F @ self.P @ self.F.T + self.Q
+        self.P = self.F @ self.P @ self.F.T + self.get_Q()
         return self.x, self.P
 
     def update(self, z, H, R):
@@ -52,22 +51,22 @@ class KalmanFilter:
         """
         Generate white noise to apply to the process model after each prediction.
         """
-        stdev = 0.05
+        stdev = 0.1
         return np.array(
             [
                 [
                     abs(random.gauss(0, stdev)),
-                    0,
-                    0,
+                    random.gauss(0, stdev),
+                    random.gauss(0, stdev),
                 ],
                 [
-                    0,
+                    random.gauss(0, stdev),
                     abs(random.gauss(0, stdev)),
-                    0,
+                    random.gauss(0, stdev),
                 ],
                 [
-                    0,
-                    0,
+                    random.gauss(0, stdev),
+                    random.gauss(0, stdev),
                     abs(random.gauss(0, stdev)),
                 ],
             ]
