@@ -14,6 +14,10 @@ import numpy as np
 from abc import ABC, abstractmethod
 from math import pi
 from utils import BearingRange
+import sympy
+from sympy.abc import x, y, theta, j, k
+from sympy import Matrix, Symbol
+from utils import wrap_angle
 
 
 class SensorInterface(ABC):
@@ -219,6 +223,20 @@ class LandmarkPinger(SensorInterface):
         self.range_noise_ratio = init_range_noise_ratio
         self.bearing_noise = init_bearing_noise  # radians
         self.bearing_noise_ratio = init_bearing_noise_ratio
+        self.h_x: Matrix = Matrix(
+            [
+                [sympy.sqrt((j - x) ** 2 + (k - y) ** 2)],  # calculation of range
+                [sympy.atan2(k - y, j - x) - theta],  # calculation of bearing
+            ]
+        )
+        self.H: Matrix = self.h_x.jacobian(Matrix([x, y, theta]))
+        self.subs: dict[Symbol, float] = {
+            x: 0.0,
+            y: 0.0,
+            theta: 0.0,
+            k: 0.0,
+            j: 0.0,
+        }
 
     def sample(self):
         """
@@ -247,6 +265,73 @@ class LandmarkPinger(SensorInterface):
 
         return pd.DataFrame([noisy_bearing_ranges])
 
+    def H_eval(self, x_state, lm_id):
+        """
+        Evaluate the Jacobian of h(x) at x, which reshapes a state vector to be in the observation space. This matrix is used to turn a state prediction into an observation prediction for a specific landmark.
+
+        Args:
+            x: the current state vector, to linearize with respect to
+            lm_id: the ID of the landmark that we are predicting an observation of
+        """
+        # find the x and y position of the given landmark
+        lm = [mark for mark in self.robot.env.landmarks if mark.id == lm_id]
+        lm_x = lm[0].pos.x
+        lm_y = lm[0].pos.y
+
+        # set the value of each symbolic substitution to the actual numerical value that was passed in
+        self.subs[x] = x_state[0, 0]
+        self.subs[y] = x_state[1, 0]
+        self.subs[theta] = x_state[2, 0]
+        self.subs[j] = lm_x  # note: we use j for landmark x position
+        self.subs[k] = lm_y  # note: we use k for landmark y position
+
+        # evaluate the Jacobian at the subs values and convert it to a numpy array
+        H_eval = np.array(self.H.subs(self.subs).evalf(), dtype=float)
+
+        # return
+        return H_eval
+
+    def y(self, z, x_state, lm_id):
+        """
+        Calculate the residual between an observation x and a predicted observation derived from a predicted state. The predicted observation is in reference to a specified landmark.
+        """
+        # find the x and y position of the given landmark
+        lm = [mark for mark in self.robot.env.landmarks if mark.id == lm_id]
+        lm_x = lm[0].pos.x
+        lm_y = lm[0].pos.y
+
+        # set the value of each symbolic substitution to the actual numerical value that was passed in
+        self.subs[x] = x_state[0, 0]
+        self.subs[y] = x_state[1, 0]
+        self.subs[theta] = x_state[2, 0]
+        self.subs[j] = lm_x  # note: we use j for landmark x position
+        self.subs[k] = lm_y  # note: we use k for landmark y position
+
+        # evaluate the measurement model at the subs values and convert it to a numpy array
+        hx_eval = np.array(self.h_x.subs(self.subs).evalf(), dtype=float)
+        hx_eval[1, 0] = wrap_angle(hx_eval[1, 0])
+
+        # calculate the residual
+        residual = z - hx_eval
+        residual[1, 0] = wrap_angle(residual[1, 0])
+
+        # return
+        return residual
+
+    def R(self, z):
+        """
+        Estimate variance of a given pinger measurement.
+
+        Args:
+            z (ndarray): pinger observation [[range 0], [0 bearing]]
+
+        Returns:
+            Sensor noise model for pinger measurement
+        """
+        bearing_stdev = self.bearing_noise
+        range_stdev = self.range_noise + z[0, 0] * self.range_noise_ratio
+        return np.diag([range_stdev**2, bearing_stdev**2])
+
 
 class GPS(SensorInterface):
     def __init__(self, name, robot, interval, init_x_noise, init_y_noise):
@@ -261,8 +346,8 @@ class GPS(SensorInterface):
         )
         self.R = np.array(
             [
-                [50, 0],
-                [0, 50],
+                [100, 0],
+                [0, 100],
             ]
         )
 

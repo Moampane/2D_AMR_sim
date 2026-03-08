@@ -190,12 +190,43 @@ if __name__ == "__main__":
 
                 ekf.predict(np.array([[odom_lin_vel], [odom_ang_vel]]))
 
+                if "lmp_bearing_0" in curr_sensor_df.columns:
+                    lmp = robot.sensors["LandmarkPinger"]
+                    for _, row in curr_sensor_df.iterrows():
+                        for lm_id in range(len(env_info["landmarks"])):
+                            bearing = row.get(f"lmp_bearing_{lm_id}")
+                            lm_range = row.get(f"lmp_range_{lm_id}")
+
+                            if bearing != float("inf"):
+                                z = np.array([[lm_range], [bearing]])
+
+                                residual = lmp.y(z, ekf.x_state, lm_id)
+                                H = lmp.H_eval(ekf.x_state, lm_id)
+                                S = H @ ekf.P @ H.T + lmp.R(z)
+                                mahal = (residual.T @ np.linalg.inv(S) @ residual)[0, 0]
+                                if mahal > 3.0:
+                                    continue
+
+                                ekf.update(
+                                    H,
+                                    lmp.R(z),
+                                    None,
+                                    residual,
+                                )
+
+                if "GPS_x" in curr_sensor_df.columns:
+                    gps_x = curr_sensor_df.at[0, "GPS_x"]
+                    gps_y = curr_sensor_df.at[0, "GPS_y"]
+                    gps = robot.sensors["GPS"]
+
+                    ekf.update(gps.H, gps.R, np.array([[gps_x], [gps_y]]), None)
+
                 ekf_history.append(
                     pd.DataFrame(
                         {
-                            "x": [ekf.x[0][0]],
-                            "y": [ekf.x[1][0]],
-                            "theta": [ekf.x[2][0]],
+                            "x": [ekf.x_state[0][0]],
+                            "y": [ekf.x_state[1][0]],
+                            "theta": [ekf.x_state[2][0]],
                         }
                     )
                 )

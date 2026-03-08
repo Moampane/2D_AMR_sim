@@ -38,9 +38,9 @@ class ExtendedKalmanFilter:
         """
         self.timestep: float = dt
 
-        self.x: np.ndarray = prior
+        self.x_state: np.ndarray = prior
 
-        self.P: np.ndarray = np.eye(len(self.x)) * 50
+        self.P: np.ndarray = np.eye(len(self.x_state)) * 50
 
         self.f_xu: Matrix = Matrix(
             [
@@ -54,9 +54,9 @@ class ExtendedKalmanFilter:
 
         # dictionary that maps Sympy symbols to numerical values. we will use these to substitute values into our symbolic matrices!
         self.subs: dict[Symbol, float] = {
-            x: self.x[0],
-            y: self.x[1],
-            theta: self.x[2],
+            x: self.x_state[0],
+            y: self.x_state[1],
+            theta: self.x_state[2],
             v: 0,
             w: 0,
         }
@@ -73,26 +73,27 @@ class ExtendedKalmanFilter:
         Args:
             u: the input control vector
         """
-        self.subs[x] = self.x[0, 0]
-        self.subs[y] = self.x[1, 0]
-        self.subs[theta] = self.x[2, 0]
+        self.subs[x] = self.x_state[0, 0]
+        self.subs[y] = self.x_state[1, 0]
+        self.subs[theta] = self.x_state[2, 0]
         self.subs[v] = u[0, 0]
         self.subs[w] = u[1, 0]
 
         # evaluate the nonlinear motion model f(x,u) at the subsitution values
-        fxu_eval = sympy.matrix2numpy(self.f_xu.subs(self.subs))
+        fxu_eval = np.array(self.f_xu.subs(self.subs).evalf(), dtype=float)
 
         # evaluate the Jacobian matrix F at the substitution values
-        F_eval = sympy.matrix2numpy(self.F.subs(self.subs))
+        F_eval = np.array(self.F.subs(self.subs).evalf(), dtype=float)
 
         # calculate the next state prediction
-        self.x = fxu_eval
+        self.x_state = fxu_eval
+        self.x_state[2, 0] = wrap_angle(self.x_state[2, 0])
 
         # calculate the next covariance prediction
         self.P = F_eval @ self.P @ F_eval.T + self.get_Q()
 
         # return state vector and state covariance
-        return self.x, self.P
+        return self.x_state, self.P
 
     def update(
         self,
@@ -119,20 +120,21 @@ class ExtendedKalmanFilter:
             R: the measurement noise model (covariance)
             y: the residual, which is the error between the measured observation and the observation expected by the predicted state
         """
-        # TODO: calculate the total uncertainty in the system
-        S = None
+        # calculate the total uncertainty in the system
+        S = H @ self.P @ H.T + R
 
-        # TODO: calculate the Kalman Gain
-        K = None
+        # calculate the Kalman Gain
+        K = self.P @ H.T @ np.linalg.inv(S)
 
         if y is None:
             y = z - H @ self.x_state
 
-        # TODO: update state vector
-        self.x_state = None
+        # update state vector
+        self.x_state = self.x_state + K @ y
+        self.x_state[2, 0] = wrap_angle(self.x_state[2, 0])
 
-        # TODO: update process model
-        self.P = None
+        # update process model
+        self.P = self.P - K @ H @ self.P
 
         # return state vector and process model
         return self.x_state, self.P
@@ -141,23 +143,4 @@ class ExtendedKalmanFilter:
         """
         Generate white noise to apply to the process model after each prediction.
         """
-        stdev = 0.05
-        return np.array(
-            [
-                [
-                    abs(random.gauss(0, stdev)),
-                    0,
-                    0,
-                ],
-                [
-                    0,
-                    abs(random.gauss(0, stdev)),
-                    0,
-                ],
-                [
-                    0,
-                    0,
-                    abs(random.gauss(0, stdev)),
-                ],
-            ]
-        )
+        return np.diag([0.01, 0.01, 0.01])
