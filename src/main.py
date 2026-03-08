@@ -24,13 +24,6 @@ if __name__ == "__main__":
         help="Path to config.yaml file.",
     )
     parser.add_argument(
-        "-c",
-        "--cmds",
-        type=Path,
-        default=Path("../input/diff_cmd_example.csv"),
-        help="Path to motor commands file.",
-    )
-    parser.add_argument(
         "-o",
         "--output",
         type=Path,
@@ -40,8 +33,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     CONFIG_PATH: Path = args.config
     assert CONFIG_PATH.exists()
-    CMD_PATH: Path = args.cmds
-    assert CMD_PATH.exists()
     OUTPUT_PATH: Path = args.output
     assert OUTPUT_PATH.exists()
 
@@ -51,6 +42,26 @@ if __name__ == "__main__":
         env_info = config["environment"]
         robot_info = config["robot"]
         sensor_info = config["sensors"]
+
+    commands = ""
+    if not robot_info["diff_drive"]:
+        # use omnidirectional commands
+        commands = "../input/vel_cmd_example.csv"
+    else:
+        # use differential drive commands
+        commands = "../input/diff_cmd_example.csv"
+
+    parser.add_argument(
+        "-c",
+        "--cmds",
+        type=Path,
+        default=Path(commands),
+        help="Path to motor commands file.",
+    )
+
+    args = parser.parse_args()
+    CMD_PATH: Path = args.cmds
+    assert CMD_PATH.exists()
 
     # setup the environment
     dimensions = Bounds(0, env_info["width"], 0, env_info["height"])
